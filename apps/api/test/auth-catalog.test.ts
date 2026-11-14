@@ -110,3 +110,15 @@ describe('catalogue', () => {
     expect(a).toBe(b);
   });
 });
+
+describe('OTP IP limit', () => {
+  it('allows many different numbers from one shared IP (carrier NAT) but caps at 20', async () => {
+    const statuses = [];
+    for (let i = 0; i < 21; i++) {
+      const r = await ctx.app.inject({ method: 'POST', url: '/api/v1/auth/otp/request', payload: { phone: `0345${String(1000000 + i)}` }, remoteAddress: '10.77.77.77' });
+      statuses.push(r.statusCode);
+    }
+    expect(statuses.slice(0, 20).every((s) => s === 200)).toBe(true);
+    expect(statuses[20]).toBe(429);
+  });
+});

@@ -1,6 +1,6 @@
 # RUNG — PROGRESS
 
-_Last updated: 14 Nov 2026 (Milestone 3)_
+_Last updated: 14 Nov 2026 (Milestone 4)_
 
 ## Status by milestone
 
@@ -9,8 +9,9 @@ _Last updated: 14 Nov 2026 (Milestone 3)_
 | 1 | Research + brand identity | ✅ Done (awaiting Minahil's review) |
 | 2 | PRD + data model | ✅ Done (awaiting review) |
 | 3 | Backend + tests | ✅ Done (awaiting review) |
-| 4 | Customer website | ⏳ Next |
-| 5–10 | Vendor dashboard → Launch | Not started |
+| 4 | Customer website | ✅ Done (awaiting review) |
+| 5 | Vendor dashboard | ⏳ Next |
+| 6–10 | Admin → Launch | Not started |
 
 ## Milestone 1 — done
 
@@ -25,6 +26,22 @@ _Last updated: 14 Nov 2026 (Milestone 3)_
 - Improved master prompt: `docs/MASTER_PROMPT.md`
 - Accounts + keys list with cost notes: `docs/ACCOUNTS_AND_KEYS.md`
 - Generator sources: `brand/source/gen.py`, `mock.py`, `render.js`
+
+## Milestone 4 — done
+
+- `apps/web`: Next.js 15 (App Router) customer website in brand style (Fraunces / Plus Jakarta Sans / Noto Nastaliq + Naskh, brand palette)
+  - English ⇄ Urdu switch with full RTL (`<html dir="rtl">`), Urdu listing fields when present
+  - Home (occasions grid, products, services), occasion pages, product/service lists by category, search (Roman Urdu variants), vendor storefronts
+  - Product page: variants, customization fields with surcharges, quantity, add to cart; Service page: packages, advance amount, cancellation tiers, availability check, booking request
+  - Cart + checkout: per-vendor delivery date and live slot list, recipient address (zone auto-matched), gift message, hide-sender option, COD / test payment / bank transfer, server quote
+  - Orders and bookings: list + detail with status timeline, cancel, refund shown, pay advance/remaining (test payment)
+  - Security: tokens only in httpOnly cookies via a server proxy (`/bff/*`) with silent refresh and same-origin check; security headers; DEMO badge on every demo listing
+- Playwright end-to-end tests (`apps/web/e2e`) against a real API + Postgres, on a phone viewport
+
+### Milestone 4 decisions
+16. Pages that show prices, stock or IDs the customer acts on are fetched fresh (no cache); lists are cached 60 s.
+17. OTP limit: 3 codes per number per 15 min, 20 per IP (mobile carriers share IPs).
+18. No images yet: placeholder brand mark until vendors upload photos (uploads endpoint is Milestone 5).
 
 ## Milestone 3 — done
 
@@ -82,6 +99,11 @@ _Last updated: 14 Nov 2026 (Milestone 3)_
 None needed yet for Milestone 2. Full list: `docs/ACCOUNTS_AND_KEYS.md`.
 
 ## Tests
+
+**Milestone 4 (14 Nov 2026):**
+- Web: `next build` succeeds; `tsc` clean; **Playwright e2e 5/5 passing** (home + Urdu RTL switch, Roman Urdu search, full cake order for a recipient with test payment then cancel + refund, decor booking request, login redirect). Verifies tokens are httpOnly and not readable by page scripts.
+- API: 33/33 passing (added OTP shared-IP limit test).
+- Not yet measured: Lighthouse mobile score (target ≥ 85) — to run on the deployed preview.
 
 **Milestone 3 (14 Nov 2026):**
 - `apps/api`: **32/32 integration tests passing** against real Postgres 16 (auth/OTP 6, catalogue 6, cart/checkout 9, order lifecycle 4, bookings 6, admin/onboarding 1); run twice, stable. `tsc --noEmit` clean.

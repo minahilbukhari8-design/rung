@@ -16,6 +16,11 @@ export class MockSms implements SmsSender {
   readonly outbox: { to: string; text: string; at: Date }[] = [];
   async send(to: string, text: string) {
     this.outbox.push({ to, text, at: new Date() });
+    // Local/e2e only: let browser tests read codes the mock "sent". Never set in production.
+    if (process.env.MOCK_SMS_OUTBOX_FILE) {
+      const { appendFileSync } = await import('node:fs');
+      appendFileSync(process.env.MOCK_SMS_OUTBOX_FILE, JSON.stringify({ to, text }) + '\n');
+    }
     if (process.env.NODE_ENV !== 'test') console.info(`[MOCK SMS → ${to}] ${text}`);
   }
   lastTo(to: string) {

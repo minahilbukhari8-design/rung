@@ -35,7 +35,7 @@ const checkoutSchema = z.object({
 });
 
 type CartWithItems = Prisma.CartGetPayload<{
-  include: { items: { include: { variant: { include: { product: { include: { customizations: true } } } } } } };
+  include: { items: { include: { variant: { include: { product: { include: { customizations: true; vendor: { select: { name: true; nameUr: true; isDemo: true } } } } } } } } };
 }>;
 
 /** Validates customization against the product options and returns the surcharge per unit. */
@@ -64,7 +64,7 @@ function customizationExtras(item: CartWithItems['items'][number]): number {
 async function loadCart(userId: string) {
   return prisma.cart.findUnique({
     where: { userId },
-    include: { items: { orderBy: { createdAt: 'asc' }, include: { variant: { include: { product: { include: { customizations: true } } } } } } },
+    include: { items: { orderBy: { createdAt: 'asc' }, include: { variant: { include: { product: { include: { customizations: true, vendor: { select: { name: true, nameUr: true, isDemo: true } } } } } } } } },
   });
 }
 
