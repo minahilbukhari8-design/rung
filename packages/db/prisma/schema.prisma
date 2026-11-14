@@ -1,0 +1,895 @@
+// RUNG data model — Milestone 2
+// Conventions:
+//   * Money is PKR stored as integer PAISA (Rs 1 = 100 paisa) in fields ending `Paisa`. Never floats.
+//     Int max = 2,147,483,647 paisa ≈ Rs 21.4 million per row; aggregates are computed in BigInt in code.
+//   * Rates (commission, advance %) are basis points `Bps` (10000 = 100%).
+//   * Timestamps are UTC; display in Asia/Karachi.
+//   * Bilingual text: `name` (English) + `nameUr` (Urdu).
+//   * `isDemo` marks seeded demo data; the UI must badge it "DEMO".
+//   * Snapshots (prices, titles, addresses) are copied onto orders/bookings so later edits never change history.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ───────────────────────────── Enums ─────────────────────────────
+
+enum Role {
+  CUSTOMER
+  VENDOR
+  ADMIN
+}
+
+enum AdminPermission {
+  OPS
+  FINANCE
+  SUPPORT
+  SUPERADMIN
+}
+
+enum Locale {
+  en
+  ur
+}
+
+enum OtpPurpose {
+  LOGIN
+  CHANGE_PHONE
+}
+
+enum VendorStatus {
+  PENDING_REVIEW
+  APPROVED
+  SUSPENDED
+  REJECTED
+}
+
+enum VendorMemberRole {
+  OWNER
+  STAFF
+}
+
+enum VendorKind {
+  PRODUCTS
+  SERVICES
+  BOTH
+}
+
+enum KycDocType {
+  CNIC_FRONT
+  CNIC_BACK
+  NTN_CERTIFICATE
+  BUSINESS_REGISTRATION
+  BANK_PROOF
+  OTHER
+}
+
+enum KycDocStatus {
+  SUBMITTED
+  ACCEPTED
+  REJECTED
+}
+
+enum CatalogKind {
+  PRODUCT
+  SERVICE
+}
+
+enum ListingStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  ARCHIVED
+}
+
+enum CustomizationType {
+  TEXT
+  IMAGE
+  CHOICE
+}
+
+enum OrderStatus {
+  PENDING_PAYMENT // online payment not yet confirmed
+  PLACED // paid, or COD confirmed; waiting for vendor
+  ACCEPTED
+  PREPARING
+  OUT_FOR_DELIVERY
+  DELIVERED
+  CANCELLED
+  REJECTED // vendor declined
+  FAILED_DELIVERY
+}
+
+enum BookingStatus {
+  REQUESTED // customer asked; vendor must respond by `vendorRespondBy`
+  ACCEPTED // vendor accepted; advance due
+  DECLINED
+  EXPIRED // vendor didn't respond in time
+  CONFIRMED // advance paid
+  RESCHEDULE_REQUESTED
+  COMPLETED // event done
+  FULLY_PAID // remaining paid (may happen before or after COMPLETED; see state machine doc)
+  CANCELLED
+  NO_SHOW_VENDOR
+}
+
+enum ActorType {
+  CUSTOMER
+  VENDOR
+  ADMIN
+  SYSTEM
+}
+
+enum PaymentProvider {
+  MOCK
+  COD
+  BANK_TRANSFER
+  JAZZCASH
+  EASYPAISA
+  CARD
+}
+
+enum PaymentPurpose {
+  ORDER_GROUP
+  BOOKING_ADVANCE
+  BOOKING_REMAINING
+}
+
+enum PaymentStatus {
+  INITIATED
+  PENDING // awaiting provider callback or bank-transfer proof review
+  SUCCEEDED
+  FAILED
+  CANCELLED
+  REFUNDED
+  PARTIALLY_REFUNDED
+}
+
+enum RefundStatus {
+  REQUESTED
+  APPROVED
+  PROCESSED
+  REJECTED
+}
+
+enum PayoutStatus {
+  PENDING
+  PROCESSING
+  PAID
+  ON_HOLD
+}
+
+enum NotificationChannel {
+  SMS
+  WHATSAPP
+  PUSH
+  EMAIL
+  IN_APP
+}
+
+enum NotificationStatus {
+  QUEUED
+  SENT
+  FAILED
+}
+
+// ───────────────────────────── Identity ─────────────────────────────
+
+model User {
+  id               String            @id @default(cuid())
+  phone            String            @unique // E.164, e.g. +923001234567
+  phoneVerifiedAt  DateTime?
+  name             String?
+  email            String?           @unique
+  locale           Locale            @default(en)
+  roles            Role[]            @default([CUSTOMER])
+  adminPermissions AdminPermission[]
+  isDemo           Boolean           @default(false)
+  isBlocked        Boolean           @default(false)
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  sessions      Session[]
+  addresses     Address[]
+  vendorMembers VendorMember[]
+  cart          Cart?
+  orderGroups   OrderGroup[]
+  orders        Order[]        @relation("CustomerOrders")
+  bookings      Booking[]      @relation("CustomerBookings")
+  reviews       Review[]
+  notifications Notification[]
+  auditLogs     AuditLog[]
+  favourites    Favourite[]
+}
+
+model OtpCode {
+  id         String     @id @default(cuid())
+  phone      String
+  codeHash   String // never store the plain code
+  purpose    OtpPurpose @default(LOGIN)
+  attempts   Int        @default(0)
+  expiresAt  DateTime
+  consumedAt DateTime?
+  createdAt  DateTime   @default(now())
+  ip         String?
+
+  @@index([phone, createdAt])
+}
+
+model Session {
+  id               String    @id @default(cuid())
+  userId           String
+  refreshTokenHash String    @unique
+  userAgent        String?
+  expiresAt        DateTime
+  revokedAt        DateTime?
+  createdAt        DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// ───────────────────────────── Geography ─────────────────────────────
+
+model DeliveryZone {
+  id        String   @id @default(cuid())
+  city      String   @default("Lahore")
+  name      String // e.g. "DHA Phase 1–6"
+  nameUr    String?
+  areas     String[] // neighbourhood names used for matching addresses
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  addresses   Address[]
+  vendorZones VendorDeliveryZone[]
+  orders      Order[]
+
+  @@unique([city, name])
+}
+
+model Address {
+  id             String   @id @default(cuid())
+  userId         String
+  label          String? // Home, Ammi's house…
+  recipientName  String
+  recipientPhone String
+  line1          String
+  line2          String?
+  area           String
+  city           String   @default("Lahore")
+  zoneId         String?
+  latitude       Float?
+  longitude      Float?
+  landmark       String?
+  isDefault      Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  zone DeliveryZone? @relation(fields: [zoneId], references: [id])
+
+  @@index([userId])
+}
+
+// ───────────────────────────── Vendors ─────────────────────────────
+
+model Vendor {
+  id                     String       @id @default(cuid())
+  slug                   String       @unique
+  name                   String
+  nameUr                 String?
+  kind                   VendorKind
+  status                 VendorStatus @default(PENDING_REVIEW)
+  tagline                String?
+  description            String?
+  descriptionUr          String?
+  logoUrl                String?
+  coverUrl               String?
+  phone                  String
+  whatsapp               String?
+  email                  String?
+  city                   String       @default("Lahore")
+  baseAddress            String?
+  commissionBps          Int          @default(1200) // 12%: placeholder, set per vendor by admin
+  isVerified             Boolean      @default(false) // CNIC/KYC accepted
+  ratingAvg              Float        @default(0)
+  ratingCount            Int          @default(0)
+  // payout bank details are stored encrypted at the application layer
+  payoutAccountEncrypted String?
+  isDemo                 Boolean      @default(false)
+  approvedAt             DateTime?
+  createdAt              DateTime     @default(now())
+  updatedAt              DateTime     @updatedAt
+
+  members              VendorMember[]
+  documents            VendorDocument[]
+  deliveryZones        VendorDeliveryZone[]
+  deliverySlots        VendorDeliverySlot[]
+  blackouts            VendorBlackout[]
+  products             Product[]
+  services             Service[]
+  cancellationPolicies CancellationPolicy[]
+  orders               Order[]
+  bookings             Booking[]
+  payouts              Payout[]
+  reviews              Review[]
+  favourites           Favourite[]
+
+  @@index([status, kind])
+}
+
+model VendorMember {
+  id        String           @id @default(cuid())
+  vendorId  String
+  userId    String
+  role      VendorMemberRole @default(STAFF)
+  createdAt DateTime         @default(now())
+
+  vendor Vendor @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([vendorId, userId])
+}
+
+model VendorDocument {
+  id         String       @id @default(cuid())
+  vendorId   String
+  type       KycDocType
+  storageKey String // private bucket key, served via signed URL only
+  status     KycDocStatus @default(SUBMITTED)
+  reviewNote String?
+  reviewedBy String?
+  createdAt  DateTime     @default(now())
+
+  vendor Vendor @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+}
+
+model VendorDeliveryZone {
+  id                  String  @id @default(cuid())
+  vendorId            String
+  zoneId              String
+  chargePaisa         Int // vendor-set; RUNG never invents delivery charges
+  minOrderPaisa       Int     @default(0)
+  sameDayCutoffMinute Int? // minutes after midnight PKT; null = no same-day
+  isActive            Boolean @default(true)
+
+  vendor Vendor       @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  zone   DeliveryZone @relation(fields: [zoneId], references: [id])
+
+  @@unique([vendorId, zoneId])
+}
+
+model VendorDeliverySlot {
+  id          String  @id @default(cuid())
+  vendorId    String
+  dayOfWeek   Int // 0 = Sunday … 6 = Saturday
+  startMinute Int // minutes after midnight PKT
+  endMinute   Int
+  capacity    Int // max orders in this slot per day
+  isActive    Boolean @default(true)
+
+  vendor Vendor @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+
+  @@unique([vendorId, dayOfWeek, startMinute])
+}
+
+model VendorBlackout {
+  id        String   @id @default(cuid())
+  vendorId  String
+  date      DateTime @db.Date
+  reason    String?
+  serviceId String? // null = whole vendor closed
+
+  vendor Vendor @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+
+  @@index([vendorId, date])
+}
+
+// ───────────────────────────── Taxonomy ─────────────────────────────
+
+model Category {
+  id        String      @id @default(cuid())
+  kind      CatalogKind
+  slug      String      @unique
+  name      String
+  nameUr    String
+  iconKey   String?
+  sortOrder Int         @default(0)
+  parentId  String?
+  isActive  Boolean     @default(true)
+
+  parent   Category?  @relation("CategoryTree", fields: [parentId], references: [id])
+  children Category[] @relation("CategoryTree")
+  products Product[]
+  services Service[]
+}
+
+model Occasion {
+  id          String  @id @default(cuid())
+  slug        String  @unique
+  name        String
+  nameUr      String
+  accentToken String // brand token: rani | genda | firozi | kesar | mehndi | zari | shab
+  isSombre    Boolean @default(false) // condolence / get well: muted UI, no confetti
+  sortOrder   Int     @default(0)
+  isActive    Boolean @default(true)
+
+  products Product[]
+  services Service[]
+  bookings Booking[]
+  orders   Order[]
+}
+
+// ───────────────────────────── Products ─────────────────────────────
+
+model Product {
+  id              String        @id @default(cuid())
+  vendorId        String
+  categoryId      String
+  slug            String
+  title           String
+  titleUr         String?
+  description     String?
+  descriptionUr   String?
+  status          ListingStatus @default(DRAFT)
+  leadTimeMinutes Int           @default(0) // prep time needed before earliest delivery slot
+  isCustomizable  Boolean       @default(false)
+  isDemo          Boolean       @default(false)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  vendor         Vendor                @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  category       Category              @relation(fields: [categoryId], references: [id])
+  occasions      Occasion[]
+  variants       ProductVariant[]
+  images         ProductImage[]
+  customizations CustomizationOption[]
+  favourites     Favourite[]
+
+  @@unique([vendorId, slug])
+  @@index([status, categoryId])
+}
+
+model ProductVariant {
+  id             String  @id @default(cuid())
+  productId      String
+  sku            String?
+  name           String // "2 lb · Chocolate"
+  nameUr         String?
+  attributes     Json    @default("{}") // {"size":"2 lb","flavour":"Chocolate"}
+  pricePaisa     Int
+  compareAtPaisa Int? // only if vendor really sold at that price before
+  trackInventory Boolean @default(true)
+  stock          Int     @default(0)
+  isActive       Boolean @default(true)
+  sortOrder      Int     @default(0)
+
+  product    Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+  cartItems  CartItem[]
+  orderItems OrderItem[]
+
+  @@unique([productId, sku])
+}
+
+model ProductImage {
+  id        String  @id @default(cuid())
+  productId String
+  url       String
+  alt       String?
+  sortOrder Int     @default(0)
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+}
+
+model CustomizationOption {
+  id              String            @id @default(cuid())
+  productId       String
+  label           String // "Message on cake"
+  labelUr         String?
+  type            CustomizationType
+  isRequired      Boolean           @default(false)
+  maxLength       Int?
+  choices         Json? // for CHOICE: [{"value":"gold","label":"Gold ribbon","extraPaisa":0}]
+  extraPricePaisa Int               @default(0)
+  sortOrder       Int               @default(0)
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+}
+
+model Favourite {
+  id        String   @id @default(cuid())
+  userId    String
+  productId String?
+  vendorId  String?
+  createdAt DateTime @default(now())
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product Product? @relation(fields: [productId], references: [id], onDelete: Cascade)
+  vendor  Vendor?  @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, productId, vendorId])
+}
+
+// ───────────────────────────── Cart & Orders ─────────────────────────────
+
+model Cart {
+  id        String     @id @default(cuid())
+  userId    String     @unique
+  updatedAt DateTime   @updatedAt
+  items     CartItem[]
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model CartItem {
+  id            String   @id @default(cuid())
+  cartId        String
+  variantId     String
+  quantity      Int
+  customization Json     @default("{}") // {optionId: value}
+  createdAt     DateTime @default(now())
+
+  cart    Cart           @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  variant ProductVariant @relation(fields: [variantId], references: [id])
+}
+
+/// One checkout. A multi-vendor cart becomes one OrderGroup with one Order per vendor,
+/// paid with a single payment.
+model OrderGroup {
+  id         String   @id @default(cuid())
+  customerId String
+  totalPaisa Int
+  createdAt  DateTime @default(now())
+
+  customer User      @relation(fields: [customerId], references: [id])
+  orders   Order[]
+  payments Payment[]
+}
+
+model Order {
+  id         String      @id @default(cuid())
+  number     String      @unique // human-friendly, e.g. RG-24A7K9
+  groupId    String
+  customerId String
+  vendorId   String
+  occasionId String?
+  status     OrderStatus @default(PENDING_PAYMENT)
+
+  // sender vs recipient
+  senderName      String
+  senderPhone     String
+  hideSenderName  Boolean @default(false)
+  recipientName   String
+  recipientPhone  String
+  addressSnapshot Json // frozen copy of the address
+  zoneId          String
+  giftMessage     String?
+
+  deliveryDate    DateTime @db.Date
+  slotStartMinute Int
+  slotEndMinute   Int
+
+  subtotalPaisa       Int
+  deliveryChargePaisa Int
+  discountPaisa       Int @default(0)
+  totalPaisa          Int
+  commissionBps       Int // snapshot of vendor commission
+  commissionPaisa     Int
+
+  cancelReason     String?
+  cancelledBy      ActorType?
+  deliveryProofUrl String?
+  vendorRespondBy  DateTime?
+  placedAt         DateTime?
+  deliveredAt      DateTime?
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+
+  group    OrderGroup         @relation(fields: [groupId], references: [id])
+  customer User               @relation("CustomerOrders", fields: [customerId], references: [id])
+  vendor   Vendor             @relation(fields: [vendorId], references: [id])
+  occasion Occasion?          @relation(fields: [occasionId], references: [id])
+  zone     DeliveryZone       @relation(fields: [zoneId], references: [id])
+  items    OrderItem[]
+  events   OrderStatusEvent[]
+  refunds  Refund[]
+  review   Review?
+
+  @@index([vendorId, status])
+  @@index([customerId, createdAt])
+  @@index([vendorId, deliveryDate, slotStartMinute])
+}
+
+model OrderItem {
+  id             String @id @default(cuid())
+  orderId        String
+  variantId      String
+  productTitle   String // snapshots
+  variantName    String
+  unitPricePaisa Int
+  extrasPaisa    Int    @default(0) // customization surcharges
+  quantity       Int
+  lineTotalPaisa Int
+  customization  Json   @default("{}")
+
+  order   Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  variant ProductVariant @relation(fields: [variantId], references: [id])
+}
+
+model OrderStatusEvent {
+  id        String       @id @default(cuid())
+  orderId   String
+  from      OrderStatus?
+  to        OrderStatus
+  actorType ActorType
+  actorId   String?
+  note      String?
+  photoUrl  String?
+  createdAt DateTime     @default(now())
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId, createdAt])
+}
+
+// ───────────────────────────── Services & Bookings ─────────────────────────────
+
+model Service {
+  id                String        @id @default(cuid())
+  vendorId          String
+  categoryId        String
+  slug              String
+  title             String
+  titleUr           String?
+  description       String?
+  descriptionUr     String?
+  status            ListingStatus @default(DRAFT)
+  maxBookingsPerDay Int           @default(1)
+  serviceAreas      String[] // Lahore areas served
+  travelsToVenue    Boolean       @default(true)
+  isDemo            Boolean       @default(false)
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  vendor    Vendor           @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  category  Category         @relation(fields: [categoryId], references: [id])
+  occasions Occasion[]
+  packages  ServicePackage[]
+  images    ServiceImage[]
+  bookings  Booking[]
+
+  @@unique([vendorId, slug])
+  @@index([status, categoryId])
+}
+
+model ServiceImage {
+  id        String  @id @default(cuid())
+  serviceId String
+  url       String
+  alt       String?
+  sortOrder Int     @default(0)
+
+  service Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+}
+
+model ServicePackage {
+  id                   String  @id @default(cuid())
+  serviceId            String
+  name                 String
+  nameUr               String?
+  inclusions           Json    @default("[]") // ["Stage decor","50 chairs",…]
+  pricePaisa           Int
+  advanceBps           Int     @default(3000) // vendor-set advance % (30% default placeholder)
+  durationMinutes      Int?
+  minGuests            Int?
+  maxGuests            Int?
+  cancellationPolicyId String?
+  isActive             Boolean @default(true)
+  sortOrder            Int     @default(0)
+
+  service            Service             @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  cancellationPolicy CancellationPolicy? @relation(fields: [cancellationPolicyId], references: [id])
+  bookings           Booking[]
+}
+
+model CancellationPolicy {
+  id       String @id @default(cuid())
+  vendorId String
+  name     String
+  /// ordered tiers: [{"hoursBefore":168,"refundBps":10000},{"hoursBefore":48,"refundBps":5000},{"hoursBefore":0,"refundBps":0}]
+  tiers    Json
+
+  vendor   Vendor           @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  packages ServicePackage[]
+}
+
+model Booking {
+  id         String        @id @default(cuid())
+  number     String        @unique // e.g. RB-7Q2M4X
+  customerId String
+  vendorId   String
+  serviceId  String
+  packageId  String
+  occasionId String?
+  status     BookingStatus @default(REQUESTED)
+
+  eventStart    DateTime
+  eventEnd      DateTime?
+  venueSnapshot Json // address / venue name
+  guestCount    Int?
+  notes         String?
+
+  packageName       String // snapshots
+  packagePricePaisa Int
+  addOnsPaisa       Int    @default(0)
+  totalPaisa        Int
+  advanceBps        Int
+  advancePaisa      Int
+  remainingPaisa    Int
+  paidPaisa         Int    @default(0)
+  commissionBps     Int
+  commissionPaisa   Int
+  policySnapshot    Json? // cancellation tiers frozen at booking time
+
+  vendorRespondBy    DateTime
+  advanceDueBy       DateTime?
+  rescheduleCount    Int        @default(0)
+  proposedEventStart DateTime? // pending reschedule
+  cancelReason       String?
+  cancelledBy        ActorType?
+  completedAt        DateTime?
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+
+  customer User                 @relation("CustomerBookings", fields: [customerId], references: [id])
+  vendor   Vendor               @relation(fields: [vendorId], references: [id])
+  service  Service              @relation(fields: [serviceId], references: [id])
+  package  ServicePackage       @relation(fields: [packageId], references: [id])
+  occasion Occasion?            @relation(fields: [occasionId], references: [id])
+  events   BookingStatusEvent[]
+  payments Payment[]
+  refunds  Refund[]
+  review   Review?
+
+  @@index([vendorId, eventStart])
+  @@index([customerId, createdAt])
+  @@index([serviceId, eventStart])
+}
+
+model BookingStatusEvent {
+  id        String         @id @default(cuid())
+  bookingId String
+  from      BookingStatus?
+  to        BookingStatus
+  actorType ActorType
+  actorId   String?
+  note      String?
+  createdAt DateTime       @default(now())
+
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@index([bookingId, createdAt])
+}
+
+// ───────────────────────────── Money ─────────────────────────────
+
+model Payment {
+  id             String          @id @default(cuid())
+  purpose        PaymentPurpose
+  provider       PaymentProvider
+  status         PaymentStatus   @default(INITIATED)
+  amountPaisa    Int
+  orderGroupId   String?
+  bookingId      String?
+  providerRef    String? // gateway transaction id
+  idempotencyKey String          @unique
+  proofUrl       String? // bank transfer screenshot (private bucket)
+  isSandbox      Boolean         @default(true)
+  rawResponse    Json?
+  failureReason  String?
+  succeededAt    DateTime?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  orderGroup OrderGroup? @relation(fields: [orderGroupId], references: [id])
+  booking    Booking?    @relation(fields: [bookingId], references: [id])
+  refunds    Refund[]
+
+  @@index([provider, providerRef])
+}
+
+model Refund {
+  id          String       @id @default(cuid())
+  paymentId   String
+  orderId     String?
+  bookingId   String?
+  amountPaisa Int
+  reason      String
+  status      RefundStatus @default(REQUESTED)
+  providerRef String?
+  decidedBy   String?
+  createdAt   DateTime     @default(now())
+  processedAt DateTime?
+
+  payment Payment  @relation(fields: [paymentId], references: [id])
+  order   Order?   @relation(fields: [orderId], references: [id])
+  booking Booking? @relation(fields: [bookingId], references: [id])
+}
+
+model Payout {
+  id              String       @id @default(cuid())
+  vendorId        String
+  periodStart     DateTime
+  periodEnd       DateTime
+  grossPaisa      Int
+  commissionPaisa Int
+  refundsPaisa    Int          @default(0)
+  netPaisa        Int
+  status          PayoutStatus @default(PENDING)
+  reference       String?
+  paidAt          DateTime?
+  createdAt       DateTime     @default(now())
+
+  vendor Vendor @relation(fields: [vendorId], references: [id])
+
+  @@unique([vendorId, periodStart, periodEnd])
+}
+
+// ───────────────────────────── Engagement & Ops ─────────────────────────────
+
+model Review {
+  id         String   @id @default(cuid())
+  customerId String
+  vendorId   String
+  orderId    String?  @unique
+  bookingId  String?  @unique
+  rating     Int // 1–5, only after DELIVERED / COMPLETED
+  text       String?
+  photoUrls  String[]
+  isHidden   Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  customer User     @relation(fields: [customerId], references: [id])
+  vendor   Vendor   @relation(fields: [vendorId], references: [id])
+  order    Order?   @relation(fields: [orderId], references: [id])
+  booking  Booking? @relation(fields: [bookingId], references: [id])
+
+  @@index([vendorId, createdAt])
+}
+
+model Notification {
+  id        String              @id @default(cuid())
+  userId    String
+  channel   NotificationChannel
+  template  String // e.g. order.out_for_delivery
+  payload   Json
+  status    NotificationStatus  @default(QUEUED)
+  error     String?
+  sentAt    DateTime?
+  createdAt DateTime            @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  actorId   String?
+  action    String // vendor.approve, refund.approve, …
+  entity    String
+  entityId  String
+  data      Json?
+  ip        String?
+  createdAt DateTime @default(now())
+
+  actor User? @relation(fields: [actorId], references: [id])
+
+  @@index([entity, entityId])
+}
