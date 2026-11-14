@@ -1,6 +1,6 @@
 # RUNG — PROGRESS
 
-_Last updated: 14 Nov 2026 (Milestone 4)_
+_Last updated: 14 Nov 2026 (Milestone 5)_
 
 ## Status by milestone
 
@@ -10,8 +10,9 @@ _Last updated: 14 Nov 2026 (Milestone 4)_
 | 2 | PRD + data model | ✅ Done (awaiting review) |
 | 3 | Backend + tests | ✅ Done (awaiting review) |
 | 4 | Customer website | ✅ Done (awaiting review) |
-| 5 | Vendor dashboard | ⏳ Next |
-| 6–10 | Admin → Launch | Not started |
+| 5 | Vendor dashboard | ✅ Done (awaiting review) |
+| 6 | Admin dashboard | ⏳ Next |
+| 7–10 | Mobile → Launch | Not started |
 
 ## Milestone 1 — done
 
@@ -26,6 +27,25 @@ _Last updated: 14 Nov 2026 (Milestone 4)_
 - Improved master prompt: `docs/MASTER_PROMPT.md`
 - Accounts + keys list with cost notes: `docs/ACCOUNTS_AND_KEYS.md`
 - Generator sources: `brand/source/gen.py`, `mock.py`, `render.js`
+
+## Milestone 5 — done
+
+- `apps/vendor` (port 3001): Next.js vendor dashboard, English ⇄ Urdu with RTL, phone-first layout, same secure cookie proxy as the website
+  - Apply to open a shop (products, services or both); "under review" notice until admin approval
+  - Overview: counts of new orders, in-progress orders, new booking requests, confirmed bookings, low stock; new orders inline
+  - Orders: tabs by status; accept / reject with reason / start preparing / out for delivery / delivered with a photo / delivery failed; respond-by time shown
+  - Bookings: accept / decline with reason, mark completed
+  - Catalogue: add products (variants, price, stock, preparation time) and services (packages, advance %, refund tiers, bookings per day); publish / pause; edit price and stock; upload product photos
+  - Delivery & schedule: delivery areas with charge, minimum order and same-day cutoff; weekly delivery slots with capacity; closed days; staff by phone (owner only)
+  - Documents: KYC upload (CNIC, NTN, bank proof), stored privately
+  - Earnings (owner only): delivered order totals after commission, booking collections, payouts
+- API additions (`apps/api/src/routes/vendor.ts`): file uploads (5 MB, file type checked from its bytes, private KYC files readable only by the uploader and admins), vendor profile, documents, catalogue editing, zones/slots/closed days, staff roles, stats, earnings
+- Local file storage adapter until object storage (Cloudflare R2) is set up
+
+### Milestone 5 decisions
+19. Uploads go through the API as base64 (5 MB cap) and are stored on local disk for now; switching to R2 signed uploads needs the R2 account.
+20. Staff can handle orders, bookings and catalogue; only owners see earnings and manage staff.
+21. New listings start as Draft; the vendor publishes them, and they appear to customers only once the shop is approved.
 
 ## Milestone 4 — done
 
@@ -100,6 +120,11 @@ None needed yet for Milestone 2. Full list: `docs/ACCOUNTS_AND_KEYS.md`.
 
 ## Tests
 
+**Milestone 5 (14 Nov 2026):**
+- API: **42/42 passing** (added 9 vendor/upload tests: membership, stock/price/status edits, closed days remove slots, staff permissions, earnings after delivery, private KYC access, file-type and size checks, public product image, path tricks refused).
+- Vendor app: `tsc` clean, `next build` succeeds; **Playwright e2e 4/4 passing** (login redirect + new shop application, DEMO bakery accepts a real sandbox order and moves it to out for delivery, add product as draft then publish, Urdu RTL).
+- Customer website e2e re-run: 5/5 still passing.
+
 **Milestone 4 (14 Nov 2026):**
 - Web: `next build` succeeds; `tsc` clean; **Playwright e2e 5/5 passing** (home + Urdu RTL switch, Roman Urdu search, full cake order for a recipient with test payment then cancel + refund, decor booking request, login redirect). Verifies tokens are httpOnly and not readable by page scripts.
 - API: 33/33 passing (added OTP shared-IP limit test).
@@ -122,7 +147,7 @@ None needed yet for Milestone 2. Full list: `docs/ACCOUNTS_AND_KEYS.md`.
 
 - Payment webhooks, JazzCash/Easypaisa/card adapters, refunds to real gateways: Milestone 8 (need merchant accounts).
 - WhatsApp/SMS notifications are not sent yet beyond OTP (mock); notification fan-out comes with Milestone 4/5.
-- Uploads (`/uploads/sign`), reviews endpoints, payouts generation and OpenAPI file are planned but not built yet.
+- Reviews endpoints, payout generation and the OpenAPI file are planned but not built yet. Uploads use local disk until R2 is set up.
 - Expiry jobs run via `POST /admin/jobs/expire`; a real scheduler is set up at deploy time (Milestone 10).
 
 - Social/packaging images are concept renders, not print-ready dielines.

@@ -1,0 +1,8 @@
+nav a[aria-current='page'] { text-decoration: underline; text-underline-offset: 6px; text-decoration-color: var(--genda); text-decoration-thickness: 3px; }
+.tiles { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); margin-bottom: 24px; }
+.tile { background: #fff; border: 1px solid var(--line); border-radius: var(--radius); padding: 14px; }
+.tile b { display: block; font-size: 28px; font-family: var(--display); }
+.row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.list { display: grid; gap: 12px; }
+.inline input { width: 110px; }
+.tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
