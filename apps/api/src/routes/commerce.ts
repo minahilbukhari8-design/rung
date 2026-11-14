@@ -292,8 +292,10 @@ export async function commerceRoutes(app: FastifyInstance, adapters: Adapters) {
   app.post('/vendor/orders/:number/transition', async (req) => {
     const { vendor, user } = await requireVendor(req);
     const { number } = req.params as { number: string };
-    const body = parse(z.object({ to: z.enum(['ACCEPTED', 'REJECTED', 'PREPARING', 'OUT_FOR_DELIVERY', 'DELIVERED', 'FAILED_DELIVERY']), note: z.string().max(300).optional(), photoUrl: z.string().url().optional() }), req.body);
-    return transitionOrder(adapters, { orderNumber: number, to: body.to, actor: 'VENDOR', actorId: user.id, note: body.note, photoUrl: body.photoUrl, vendorId: vendor.id });
+    const body = parse(z.object({ to: z.enum(['ACCEPTED', 'REJECTED', 'PREPARING', 'OUT_FOR_DELIVERY', 'DELIVERED', 'FAILED_DELIVERY']), note: z.string().max(300).optional(), photoUrl: z.string().url().optional(), photoKey: z.string().regex(/^public\/[a-z0-9]+\/[0-9a-f-]+\.(jpg|png|webp)$/).optional() }), req.body);
+    if (body.photoKey && !body.photoKey.startsWith(`public/${user.id}/`)) throw badRequest('BAD_KEY', 'Upload the photo first');
+    const photoUrl = body.photoUrl ?? (body.photoKey ? `/api/v1/files/${body.photoKey}` : undefined);
+    return transitionOrder(adapters, { orderNumber: number, to: body.to, actor: 'VENDOR', actorId: user.id, note: body.note, photoUrl, vendorId: vendor.id });
   });
 
   // ---------- bank transfer proof ----------

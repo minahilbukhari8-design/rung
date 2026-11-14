@@ -92,14 +92,55 @@ export class BankTransferGateway implements PaymentGateway {
   }
 }
 
+// ---------- File storage ----------
+export interface StoredFile {
+  key: string;
+  contentType: string;
+  size: number;
+}
+export interface FileStorage {
+  readonly name: string;
+  put(key: string, data: Buffer, contentType: string): Promise<StoredFile>;
+  get(key: string): Promise<{ data: Buffer; contentType: string } | null>;
+}
+
+/** Local-disk storage for dev/tests until an S3-compatible bucket (Cloudflare R2) exists. */
+export class LocalStorage implements FileStorage {
+  readonly name = 'local';
+  constructor(private dir = process.env.UPLOAD_DIR ?? '/tmp/rung-uploads') {}
+  async put(key: string, data: Buffer, contentType: string) {
+    const { mkdir, writeFile } = await import('node:fs/promises');
+    const path = await import('node:path');
+    const file = path.join(this.dir, key);
+    if (!file.startsWith(path.resolve(this.dir))) throw new Error('bad key');
+    await mkdir(path.dirname(file), { recursive: true });
+    await writeFile(file, data);
+    await writeFile(`${file}.type`, contentType);
+    return { key, contentType, size: data.length };
+  }
+  async get(key: string) {
+    const { readFile } = await import('node:fs/promises');
+    const path = await import('node:path');
+    const file = path.join(this.dir, key);
+    if (!file.startsWith(path.resolve(this.dir))) return null;
+    try {
+      return { data: await readFile(file), contentType: (await readFile(`${file}.type`, 'utf8')).trim() };
+    } catch {
+      return null;
+    }
+  }
+}
+
 export interface Adapters {
   sms: SmsSender;
   payments: Partial<Record<PaymentProvider, PaymentGateway>>;
+  storage?: FileStorage;
 }
 
 export function createAdapters(): Adapters {
   return {
     sms: createSmsSender(),
     payments: { MOCK: new MockGateway(), COD: new CodGateway(), BANK_TRANSFER: new BankTransferGateway() },
+    storage: new LocalStorage(),
   };
 }

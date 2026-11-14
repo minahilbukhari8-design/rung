@@ -6,6 +6,7 @@ import { bookingRoutes } from './routes/bookings.js';
 import { catalogRoutes } from './routes/catalog.js';
 import { commerceRoutes } from './routes/commerce.js';
 import { manageRoutes } from './routes/manage.js';
+import { vendorRoutes } from './routes/vendor.js';
 
 export async function buildApp(adapters: Adapters = createAdapters()): Promise<FastifyInstance> {
   const app = Fastify({ logger: process.env.NODE_ENV === 'test' ? false : { level: 'info' }, trustProxy: true, bodyLimit: 1_000_000 });
@@ -31,6 +32,7 @@ export async function buildApp(adapters: Adapters = createAdapters()): Promise<F
       await commerceRoutes(v1, adapters);
       await bookingRoutes(v1, adapters);
       await manageRoutes(v1, adapters);
+      await vendorRoutes(v1, adapters);
     },
     { prefix: '/api/v1' },
   );
