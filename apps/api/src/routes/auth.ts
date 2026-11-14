@@ -7,7 +7,8 @@ import { ApiError, badRequest, parse, prisma, randomToken, requireUser, sha256, 
 
 const OTP_TTL_MS = 5 * 60_000;
 const OTP_MAX_ATTEMPTS = 5;
-const OTP_MAX_SENDS = 3;
+const OTP_MAX_SENDS = 3; // per phone number
+const OTP_MAX_SENDS_PER_IP = 20; // mobile carriers share IPs (CGNAT), so the IP limit is looser
 const OTP_SEND_WINDOW_MS = 15 * 60_000;
 const REFRESH_TTL_MS = 30 * 24 * 3600_000;
 
@@ -30,8 +31,11 @@ export async function authRoutes(app: FastifyInstance, adapters: Adapters) {
   app.post('/auth/otp/request', async (req) => {
     const { phone } = parse(z.object({ phone: phoneSchema }), req.body);
     const since = new Date(Date.now() - OTP_SEND_WINDOW_MS);
-    const recent = await prisma.otpCode.count({ where: { OR: [{ phone }, { ip: req.ip }], createdAt: { gte: since } } });
-    if (recent >= OTP_MAX_SENDS) throw new ApiError(429, 'OTP_RATE_LIMIT', 'Too many codes requested. Try again in 15 minutes.');
+    const [byPhone, byIp] = await Promise.all([
+      prisma.otpCode.count({ where: { phone, createdAt: { gte: since } } }),
+      prisma.otpCode.count({ where: { ip: req.ip, createdAt: { gte: since } } }),
+    ]);
+    if (byPhone >= OTP_MAX_SENDS || byIp >= OTP_MAX_SENDS_PER_IP) throw new ApiError(429, 'OTP_RATE_LIMIT', 'Too many codes requested. Try again in 15 minutes.');
     const code = String(randomInt(0, 1_000_000)).padStart(6, '0');
     await prisma.otpCode.create({ data: { phone, codeHash: sha256(`${phone}:${code}`), expiresAt: new Date(Date.now() + OTP_TTL_MS), ip: req.ip } });
     await adapters.sms.send(phone, `RUNG code: ${code}. Valid for 5 minutes. Do not share it.`);
