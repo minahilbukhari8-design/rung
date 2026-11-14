@@ -41,7 +41,8 @@ stateDiagram-v2
   ACCEPTED --> EXPIRED: advance not paid by advanceDueBy
   ACCEPTED --> CANCELLED
   CONFIRMED --> RESCHEDULE_REQUESTED: either side (max 2)
-  RESCHEDULE_REQUESTED --> CONFIRMED: agreed / withdrawn
+  RESCHEDULE_REQUESTED --> CONFIRMED: answered / withdrawn
+  RESCHEDULE_REQUESTED --> FULLY_PAID: answered (was fully paid)
   CONFIRMED --> FULLY_PAID: remaining paid before event
   CONFIRMED --> COMPLETED: vendor after event
   COMPLETED --> FULLY_PAID: remaining paid after event
@@ -51,6 +52,8 @@ stateDiagram-v2
   CONFIRMED --> NO_SHOW_VENDOR: admin
   FULLY_PAID --> NO_SHOW_VENDOR: admin
 ```
+
+A reschedule returns the booking to the status it had before the request (CONFIRMED or FULLY_PAID); if accepted, `eventStart` moves to the proposed time.
 
 A booking is "closed" when it is COMPLETED **and** paidPaisa ≥ totalPaisa.
 

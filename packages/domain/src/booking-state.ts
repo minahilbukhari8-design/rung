@@ -36,7 +36,8 @@ const T: Record<BookingStatus, { to: BookingStatus; by: Actor[] }[]> = {
     { to: 'NO_SHOW_VENDOR', by: ['ADMIN'] },
   ],
   RESCHEDULE_REQUESTED: [
-    { to: 'CONFIRMED', by: ['CUSTOMER', 'VENDOR', 'ADMIN'] }, // other party accepts or request withdrawn
+    { to: 'CONFIRMED', by: ['CUSTOMER', 'VENDOR', 'ADMIN'] }, // other party answers / request withdrawn
+    { to: 'FULLY_PAID', by: ['CUSTOMER', 'VENDOR', 'ADMIN'] }, // same, when it was already fully paid
     { to: 'CANCELLED', by: ['CUSTOMER', 'VENDOR', 'ADMIN'] },
   ],
   FULLY_PAID: [
