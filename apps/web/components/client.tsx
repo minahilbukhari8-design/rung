@@ -333,7 +333,7 @@ export function BookingForm({ locale, serviceId, packages, loggedIn }: { locale:
       ))}
       <div style={{ display: 'grid', gap: 10, gridTemplateColumns: '1fr 1fr' }}>
         <label>{t(locale, 'eventDate')}<input type="date" required min={pktToday(1)} value={date} onChange={(e) => setDate(e.target.value)} /></label>
-        <label>&nbsp;<input type="time" required value={time} onChange={(e) => setTime(e.target.value)} /></label>
+        <label>&nbsp;<input type="time" required aria-label={t(locale, 'eventTime')} value={time} onChange={(e) => setTime(e.target.value)} /></label>
       </div>
       {date && days[date] === false && <p className="error">That date is fully booked.</p>}
       <label>{t(locale, 'venue')}<input required value={venue.address} onChange={(e) => setVenue({ ...venue, address: e.target.value })} /></label>

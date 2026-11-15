@@ -1,0 +1,20 @@
+name: Scheduled jobs
+# Runs RUNG's time-based jobs (unanswered orders, expired booking requests) on free hosting,
+# where the API sleeps when idle. Needs repository secrets RUNG_API_URL and RUNG_JOBS_TOKEN; skips quietly without them.
+on:
+  schedule:
+    - cron: '7 * * * *' # hourly; keeps GitHub Actions use within the free minutes of a private repo
+  workflow_dispatch:
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Call the API
+        env:
+          RUNG_API_URL: ${{ secrets.RUNG_API_URL }}
+          RUNG_JOBS_TOKEN: ${{ secrets.RUNG_JOBS_TOKEN }}
+        run: |
+          if [ -z "$RUNG_API_URL" ] || [ -z "$RUNG_JOBS_TOKEN" ]; then echo "Not deployed yet: secrets missing, skipping."; exit 0; fi
+          # the free API may be asleep: allow up to 2 minutes for it to wake
+          curl -fsS --retry 3 --retry-delay 20 --max-time 120 -X POST "$RUNG_API_URL/api/v1/jobs/run" -H "x-jobs-token: $RUNG_JOBS_TOKEN"

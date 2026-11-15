@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { pick, t, type Locale } from '@/lib/i18n';
 
 export const ACCENT: Record<string, string> = {
-  rani: 'var(--rani)', genda: 'var(--genda)', firozi: 'var(--firozi)', kesar: 'var(--kesar)', mehndi: 'var(--mehndi)', zari: 'var(--zari)', shab: 'var(--shab)',
+  rani: 'var(--rani)', genda: 'var(--genda)', firozi: 'var(--firozi-deep)', kesar: 'var(--kesar-deep)', mehndi: 'var(--mehndi-deep)', zari: 'var(--zari)', shab: 'var(--shab)',
 };
 
 export interface Occasion { id: string; slug: string; name: string; nameUr: string; accentToken: string; isSombre: boolean }

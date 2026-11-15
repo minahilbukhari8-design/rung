@@ -1,3 +1,4 @@
+import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { OUTBOX } from '../playwright.config';
@@ -139,4 +140,23 @@ test('Ask RUNG (basic helper, no AI key): Roman Urdu request shows real DEMO lis
   await expect(page.getByTestId('chat-assistant')).toContainText('DEMO Mehndi Stage Decor');
   await page.getByTestId('chat-card-demo-mehndi-decor').click();
   await expect(page).toHaveURL(/\/services\/demo-decor\/demo-mehndi-decor/);
+});
+
+/** WCAG 2.1 A/AA checks with axe-core on each page; any violation fails the test with its rule, element and fix hint. */
+async function expectAccessible(page: Page, path: string) {
+  await page.goto(path);
+  await page.waitForLoadState('networkidle');
+  const r = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze();
+  const problems = r.violations.map((v) => `${path} ${v.id}: ${v.help} → ${v.nodes.slice(0, 3).map((n) => n.target.join(' ')).join(' | ')}`);
+  expect(problems, problems.join('\n')).toEqual([]);
+}
+
+test('accessibility (axe, WCAG 2.1 AA): public pages in English and Urdu, and logged-in pages', async ({ page }) => {
+  for (const p of ['/', '/products', '/services', '/search?q=cake', '/products/demo-bakery/demo-chocolate-cake', '/services/demo-decor/demo-mehndi-decor', '/occasions/birthday', '/vendors/demo-bakery', '/assistant', '/login']) await expectAccessible(page, p);
+  await page.goto('/');
+  await page.getByRole('link', { name: 'اردو' }).click();
+  for (const p of ['/', '/products/demo-bakery/demo-chocolate-cake', '/services/demo-decor/demo-mehndi-decor']) await expectAccessible(page, p);
+  await page.getByRole('link', { name: 'English' }).click();
+  await login(page, '0335 1110003', '+923351110003');
+  for (const p of ['/cart', '/orders', '/bookings']) await expectAccessible(page, p);
 });

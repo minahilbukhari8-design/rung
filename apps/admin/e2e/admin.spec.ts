@@ -1,3 +1,4 @@
+import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type APIRequestContext, type Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { API, OUTBOX } from '../playwright.config';
@@ -110,7 +111,7 @@ test('finance confirms a bank transfer, support cancels the order, finance recor
   await expect(page.getByRole('cell', { name: 'payment.confirm' })).toBeVisible();
 });
 
-test('support blocks and unblocks a user', async ({ page }) => {
+test('support blocks and unblocks a user; every admin page passes axe (WCAG 2.1 AA)', async ({ page }) => {
   await login(page, ADMIN.local, ADMIN.e164);
   await page.goto('/users');
   await page.getByLabel('Search users').fill('3331112222');
@@ -122,4 +123,20 @@ test('support blocks and unblocks a user', async ({ page }) => {
   await expect(row).toContainText('Blocked');
   await row.getByRole('button', { name: 'Unblock' }).click();
   await expect(row).not.toContainText('Blocked');
+
+  // accessibility of every admin page, in the same session (a 4th login code in 15 minutes would hit the OTP limit)
+  for (const p of ['/', '/vendors', '/documents', '/orders', '/bookings', '/payments', '/refunds', '/payouts', '/users', '/audit']) await expectAccessible(page, p);
+});
+
+/** WCAG 2.1 A/AA checks with axe-core on each page; any violation fails the test with its rule, element and fix hint. */
+async function expectAccessible(page: Page, path: string) {
+  await page.goto(path);
+  await page.waitForLoadState('networkidle');
+  const r = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze();
+  const problems = r.violations.map((v) => `${path} ${v.id}: ${v.help} → ${v.nodes.slice(0, 3).map((n) => n.target.join(' ')).join(' | ')}`);
+  expect(problems, problems.join('\n')).toEqual([]);
+}
+
+test('accessibility (axe, WCAG 2.1 AA): admin login page', async ({ page }) => {
+  await expectAccessible(page, '/login');
 });

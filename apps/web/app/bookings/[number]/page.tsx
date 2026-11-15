@@ -31,7 +31,7 @@ export default async function BookingPage({ params }: { params: Promise<{ number
           <BookingActions locale={locale} number={b.number} status={b.status} canPayRemaining={['CONFIRMED', 'COMPLETED'].includes(b.status) && due > 0} />
         </div>
         <div>
-          <h3>{t(locale, 'status')}</h3>
+          <h2 style={{ fontSize: 20 }}>{t(locale, 'status')}</h2>
           <ol className="timeline">
             {b.events.map((e: { id: string; to: string; createdAt: string; note?: string }) => <li key={e.id}><strong>{statusLabel(locale, e.to)}</strong> <span className="muted">{new Date(e.createdAt).toLocaleString('en-PK', { timeZone: 'Asia/Karachi' })}</span>{e.note && !e.note.startsWith('from:') ? <div className="muted">{e.note}</div> : null}</li>)}
           </ol>

@@ -295,7 +295,7 @@ export function Payments() {
       <p className="muted">Bank transfers wait here until someone checks RUNG’s bank statement. Confirm only when the money has arrived, and enter the bank’s transaction reference.</p>
       <Tabs values={['PENDING', 'SUCCEEDED', 'FAILED', 'REFUNDED']} value={status} onChange={setStatus} />
       {!list ? <Denied status={st} /> : list.length === 0 ? <p className="muted">Nothing here.</p> : (
-        <div className="scroll"><table className="data"><thead><tr><th>Created</th><th>For</th><th>Customer</th><th>Method</th><th>Amount</th><th>Receipt</th><th /></tr></thead>
+        <div className="scroll" tabIndex={0} role="region" aria-label="Scrollable table"><table className="data"><thead><tr><th>Created</th><th>For</th><th>Customer</th><th>Method</th><th>Amount</th><th>Receipt</th><th /></tr></thead>
           <tbody>{list.map((p) => (
             <tr key={p.id} data-testid={`payment-${p.id}`}>
               <td>{when(p.createdAt)}</td>
@@ -324,7 +324,7 @@ export function Refunds() {
       <p className="muted">Sandbox refunds are sent automatically. Bank transfer refunds stay in “Approved” until finance sends the money and records the reference here.</p>
       <Tabs values={['APPROVED', 'REQUESTED', 'PROCESSED', 'REJECTED']} value={status} onChange={setStatus} />
       {!list ? <Denied status={st} /> : list.length === 0 ? <p className="muted">Nothing here.</p> : (
-        <div className="scroll"><table className="data"><thead><tr><th>Created</th><th>For</th><th>Method</th><th>Amount</th><th>Reason</th><th /></tr></thead>
+        <div className="scroll" tabIndex={0} role="region" aria-label="Scrollable table"><table className="data"><thead><tr><th>Created</th><th>For</th><th>Method</th><th>Amount</th><th>Reason</th><th /></tr></thead>
           <tbody>{list.map((r) => (
             <tr key={r.id} data-testid={`refund-${r.id}`}>
               <td>{when(r.createdAt)}</td><td className="mono">{r.order?.number ?? r.booking?.number}</td>
@@ -371,7 +371,7 @@ export function Payouts() {
       </form>
       <Tabs values={['', 'PENDING', 'ON_HOLD', 'PAID']} value={status} onChange={setStatus} />
       {!list ? <Denied status={st} /> : list.length === 0 ? <p className="muted">No payouts yet.</p> : (
-        <div className="scroll"><table className="data"><thead><tr><th>Shop</th><th>Period</th><th>Gross</th><th>Commission</th><th>To pay</th><th>Status</th><th /></tr></thead>
+        <div className="scroll" tabIndex={0} role="region" aria-label="Scrollable table"><table className="data"><thead><tr><th>Shop</th><th>Period</th><th>Gross</th><th>Commission</th><th>To pay</th><th>Status</th><th /></tr></thead>
           <tbody>{list.map((p) => (
             <tr key={p.id} data-testid={`payout-${p.vendor.slug}`}>
               <td>{p.vendor.name} {p.vendor.isDemo && <span className="pill demo">DEMO</span>}</td>
@@ -402,7 +402,7 @@ export function Users() {
         <button className="btn small">Search</button>
       </form>
       {!list ? <Denied status={st} /> : (
-        <div className="scroll"><table className="data"><thead><tr><th>Phone</th><th>Name</th><th>Roles</th><th>Orders</th><th>Bookings</th><th>Joined</th><th /></tr></thead>
+        <div className="scroll" tabIndex={0} role="region" aria-label="Scrollable table"><table className="data"><thead><tr><th>Phone</th><th>Name</th><th>Roles</th><th>Orders</th><th>Bookings</th><th>Joined</th><th /></tr></thead>
           <tbody>{list.map((u) => (
             <tr key={u.id} data-testid={`user-${u.phone}`}>
               <td className="mono">{u.phone}</td><td>{u.name ?? '—'}</td>
@@ -425,7 +425,7 @@ export function AuditLog() {
       <h1>Audit log</h1>
       <p className="muted">Every admin action is recorded with who did it, when and from which IP. Latest 200.</p>
       {!list ? <Denied status={st} /> : (
-        <div className="scroll"><table className="data"><thead><tr><th>When</th><th>Who</th><th>Action</th><th>Record</th><th>Details</th></tr></thead>
+        <div className="scroll" tabIndex={0} role="region" aria-label="Scrollable table"><table className="data"><thead><tr><th>When</th><th>Who</th><th>Action</th><th>Record</th><th>Details</th></tr></thead>
           <tbody>{list.map((a) => (
             <tr key={a.id}><td>{when(a.createdAt)}</td><td className="mono">{a.actor?.phone ?? 'system'}</td><td>{a.action}</td><td className="mono">{a.entity} {a.entityId}</td><td className="mono">{a.data ? JSON.stringify(a.data) : ''}</td></tr>
           ))}</tbody></table></div>

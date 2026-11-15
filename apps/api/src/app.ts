@@ -20,6 +20,14 @@ export async function buildApp(adapters: Adapters = createAdapters()): Promise<F
     await authenticate(req);
   });
 
+  // basic security headers on every API response
+  app.addHook('onSend', async (_req, reply) => {
+    reply.header('x-content-type-options', 'nosniff');
+    reply.header('referrer-policy', 'no-referrer');
+    reply.header('x-frame-options', 'DENY');
+    if (process.env.NODE_ENV === 'production') reply.header('strict-transport-security', 'max-age=31536000; includeSubDomains');
+  });
+
   app.setErrorHandler((err, _req, reply) => {
     if (err instanceof ApiError) return reply.code(err.status).send({ error: { code: err.code, message: (err as Error).message } });
     const status = (err as { statusCode?: number }).statusCode;

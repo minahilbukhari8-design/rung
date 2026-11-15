@@ -1,6 +1,6 @@
 # RUNG — PROGRESS
 
-_Last updated: 15 Nov 2026 (Milestone 9)_
+_Last updated: 15 Nov 2026 (Milestone 10)_
 
 ## Status by milestone
 
@@ -15,7 +15,7 @@ _Last updated: 15 Nov 2026 (Milestone 9)_
 | 7 | Mobile app (Expo) | ✅ Done (awaiting review) |
 | 8 | Payments (sandbox) | ✅ Built; wallets tested on a local simulator only, not connected (needs merchant sandbox accounts) |
 | 9 | AI assistant | ✅ Built; runs in basic (no-AI) mode until an Anthropic key is added |
-| 10 | QA + launch | ⏳ Next |
+| 10 | QA + launch prep | ✅ Ready for a free preview; deploy waits on Minahil's free accounts (Neon, Render, Vercel) |
 
 ## Milestone 1 — done
 
@@ -30,6 +30,21 @@ _Last updated: 15 Nov 2026 (Milestone 9)_
 - Improved master prompt: `docs/MASTER_PROMPT.md`
 - Accounts + keys list with cost notes: `docs/ACCOUNTS_AND_KEYS.md`
 - Generator sources: `brand/source/gen.py`, `mock.py`, `render.js`
+
+## Milestone 10 — QA and launch prep
+
+- Free-hosting plan (Minahil: free hosting, no paid domain): Neon database, Render free API, Vercel Hobby for the three web apps, GitHub Actions for hourly jobs. Steps and limits: `docs/DEPLOY.md`. Blueprint: `render.yaml`.
+- Launch checklist with what is done and what waits on accounts or decisions: `docs/LAUNCH_CHECKLIST.md`.
+- For free hosting: uploaded files can be kept in the database (`FILE_STORAGE=db`); fixed test logins for listed tester phones (`PREVIEW_TEST_LOGINS`) until an SMS account exists; `POST /api/v1/jobs/run` for the scheduler, plus a 5-minute timer while the API is awake; the API refuses to start in production with unsafe settings.
+- Lighthouse (mobile, local production build): performance 94–99, accessibility 100, best practices 100, SEO 100 on home, product, service, search and assistant pages.
+- Accessibility: axe (WCAG 2.1 AA) checks on every page of the website (English and Urdu), vendor dashboard and admin, now in the e2e suites. Fixed: occasion tile colours (white text now only on text-safe brand tones, web and app), a time field label, heading order, underlined links in text, keyboard access to scrolling admin tables.
+- Security: dependency audit (zod 4, postcss and deepmerge-ts patched; 1 moderate left inside Expo's build tools), security headers on the API and all web apps, admin and vendor dashboards marked noindex, secrets scan clean.
+
+### Milestone 10 decisions
+38. Free preview stack: Neon + Render + Vercel Hobby. Vercel Hobby is non-commercial only, so a real launch needs a different plan (Minahil's decision, it costs money).
+39. Files go in Postgres on free hosting because Render's disk is wiped on restart; move to a bucket before launch.
+40. Test logins use fixed codes only for phones Minahil lists, never `123456` or repeated digits, and switch off once a real SMS provider is set.
+41. Scheduled jobs run hourly from GitHub Actions (fits a private repo's free minutes) and every 5 minutes while the API is awake.
 
 ## Milestone 9 — built (AI off until a key is added)
 
@@ -187,6 +202,12 @@ None needed yet for Milestone 2. Full list: `docs/ACCOUNTS_AND_KEYS.md`.
 
 ## Tests
 
+**Milestone 10 (15 Nov 2026):**
+- API **77/77** (5 new: production refuses unsafe settings; test logins only for listed phones and off with real SMS; files in the database come back byte for byte; jobs endpoint needs the token; security headers). Domain 24/24, DB 1/1 (on a clean database), app unit 7/7, `pnpm -r typecheck` clean.
+- e2e: website **9/9**, vendor **5/5**, admin **5/5** (each now includes axe accessibility checks), app **6/6**.
+- Production start checked on an empty database: migrations, seed, admin, health and search all work; it refuses a laptop database URL.
+- Not tested: the real free hosts (no accounts yet), a physical phone, load.
+
 **Milestone 9 (15 Nov 2026):**
 - API: **72/72 passing** (10 new assistant tests: basic mode without a key; budgets like "5k tak" and "3,000 se kam"; Roman Urdu and Urdu requests find the real DEMO listings and respect the budget; order questions need a login; Claude tool loop with a scripted stand-in for the API: tools called, results fed back, cards only from the database, a made-up product never becomes a card; order data only for the logged-in customer; unknown tools and bad input reported back, not crashed; refusal reply; outage gives 503; input limits and rate limit).
 - Website e2e **8/8** (new: Ask RUNG in Roman Urdu → DEMO mehndi decor card → opens the listing). App e2e **6/6** (new: Ask RUNG from home → DEMO cake → opens it). App unit 7/7.
@@ -246,4 +267,4 @@ None needed yet for Milestone 2. Full list: `docs/ACCOUNTS_AND_KEYS.md`.
 
 ## Deploy status
 
-Nothing deployed. No accounts created. Mobile store builds need an Expo account (free), Google Play (USD 25 once) and Apple Developer (USD 99/year). Payments, SMS, WhatsApp, storage and AI are placeholder/mock only.
+Nothing deployed yet. Free preview ready to deploy: `docs/DEPLOY.md` (Minahil creates Neon, Render and Vercel accounts). No accounts created. Mobile store builds need an Expo account (free), Google Play (USD 25 once) and Apple Developer (USD 99/year). Payments, SMS, WhatsApp, storage and AI are placeholder/mock only.

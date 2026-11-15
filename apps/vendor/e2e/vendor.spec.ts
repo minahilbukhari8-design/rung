@@ -1,3 +1,4 @@
+import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type APIRequestContext, type Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { API, OUTBOX } from '../playwright.config';
@@ -83,4 +84,19 @@ test('Urdu switch flips the dashboard to RTL', async ({ page }) => {
   await page.getByRole('link', { name: 'اردو' }).click();
   await expect(page.locator('html')).toHaveAttribute('dir', 'rtl');
   await expect(page.getByRole('heading', { name: 'لاگ ان' })).toBeVisible();
+});
+
+/** WCAG 2.1 A/AA checks with axe-core on each page; any violation fails the test with its rule, element and fix hint. */
+async function expectAccessible(page: Page, path: string) {
+  await page.goto(path);
+  await page.waitForLoadState('networkidle');
+  const r = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze();
+  const problems = r.violations.map((v) => `${path} ${v.id}: ${v.help} → ${v.nodes.slice(0, 3).map((n) => n.target.join(' ')).join(' | ')}`);
+  expect(problems, problems.join('\n')).toEqual([]);
+}
+
+test('accessibility (axe, WCAG 2.1 AA): every vendor dashboard page', async ({ page }) => {
+  await expectAccessible(page, '/login');
+  await login(page, '0300 0000101', '+923000000101');
+  for (const p of ['/', '/orders', '/bookings', '/catalogue', '/earnings', '/documents', '/settings']) await expectAccessible(page, p);
 });
