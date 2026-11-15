@@ -11,6 +11,7 @@
     "seed": "tsx src/seed.ts"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^1.8.0",
     "@prisma/client": "^6.1.0",
     "@rung/domain": "workspace:*",
     "fastify": "^5.2.0",

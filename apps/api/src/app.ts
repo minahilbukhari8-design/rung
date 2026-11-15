@@ -2,6 +2,8 @@ import Fastify, { type FastifyInstance } from 'fastify';
 import { createAdapters, type Adapters } from './adapters/index.js';
 import { ApiError, authenticate } from './lib/core.js';
 import { adminRoutes } from './routes/admin.js';
+import { assistantFromEnv } from './lib/assistant.js';
+import { assistantRoutes } from './routes/assistant.js';
 import { authRoutes } from './routes/auth.js';
 import { bookingRoutes } from './routes/bookings.js';
 import { catalogRoutes } from './routes/catalog.js';
@@ -38,6 +40,7 @@ export async function buildApp(adapters: Adapters = createAdapters()): Promise<F
       await vendorRoutes(v1, adapters);
       await adminRoutes(v1, adapters);
       await paymentRoutes(v1, adapters);
+      await assistantRoutes(v1, adapters.assistant ?? assistantFromEnv());
       // local wallet simulator: development / automated tests only
       if (process.env.PAYMENT_SIMULATOR === '1' && process.env.NODE_ENV !== 'production') await simulatorRoutes(v1);
     },

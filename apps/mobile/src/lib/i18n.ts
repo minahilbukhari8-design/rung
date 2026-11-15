@@ -26,6 +26,10 @@ const en = {
   jazzcash: 'JazzCash wallet', easypaisa: 'Easypaisa wallet', sandboxTag: 'sandbox: no real money',
   paymentResult: 'Payment', paySucceeded: 'Payment received. Thank you!', payFailed: 'The payment did not go through. You have not been charged by RUNG.',
   payPending: 'We are waiting for the wallet to confirm this payment.', viewOrder: 'View order', viewBooking: 'View booking', checkAgain: 'Check again',
+  assistant: 'Ask RUNG', assistantIntro: 'Tell me the occasion, who it is for and your budget. English, Urdu or Roman Urdu.',
+  assistantBasic: 'Simple helper: the AI assistant is not switched on yet, so I search by keywords.',
+  assistantAi: 'AI assistant. It only shows listings that are live on RUNG and cannot order or pay for you.',
+  typeMessage: 'Your message', send: 'Send', voiceTip: 'Tip: use the microphone on your keyboard to speak in Urdu.',
 } as const;
 export type Key = keyof typeof en;
 
@@ -55,6 +59,10 @@ const ur: Record<Key, string> = {
   jazzcash: 'جاز کیش والٹ', easypaisa: 'ایزی پیسہ والٹ', sandboxTag: 'سینڈ باکس: اصل رقم نہیں',
   paymentResult: 'ادائیگی', paySucceeded: 'ادائیگی موصول ہو گئی۔ شکریہ!', payFailed: 'ادائیگی مکمل نہیں ہوئی۔ رنگ نے کوئی رقم نہیں لی۔',
   payPending: 'ہم والٹ کی تصدیق کا انتظار کر رہے ہیں۔', viewOrder: 'آرڈر دیکھیں', viewBooking: 'بکنگ دیکھیں', checkAgain: 'دوبارہ دیکھیں',
+  assistant: 'رنگ سے پوچھیں', assistantIntro: 'موقع، کس کے لیے اور بجٹ بتائیں۔ انگریزی، اردو یا رومن اردو۔',
+  assistantBasic: 'سادہ مددگار: اے آئی ابھی چالو نہیں، اس لیے میں الفاظ سے تلاش کرتا ہوں۔',
+  assistantAi: 'اے آئی مددگار۔ یہ صرف رنگ پر موجود چیزیں دکھاتا ہے اور آپ کے لیے آرڈر یا ادائیگی نہیں کر سکتا۔',
+  typeMessage: 'آپ کا پیغام', send: 'بھیجیں', voiceTip: 'مشورہ: اردو میں بولنے کے لیے کی بورڈ کا مائیک استعمال کریں۔',
 };
 
 export const DICT = { en, ur };

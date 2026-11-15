@@ -2,7 +2,7 @@ import { router } from 'expo-router';
 import { Pressable, Text, View } from 'react-native';
 import { pick } from '@/lib/i18n';
 import { useApp, useLoad } from '@/lib/app';
-import { ErrorText, Loading, Row, Screen, Txt } from '@/ui/kit';
+import { Button, ErrorText, Loading, Row, Screen, Txt } from '@/ui/kit';
 import { ListingCard, type Listing } from '@/ui/listing';
 import { C, OCCASION_COLORS } from '@/ui/theme';
 
@@ -17,6 +17,7 @@ export default function Home() {
         <Text role="heading" aria-level={1} style={{ color: C.dupatta, fontSize: 24, fontWeight: '800', textAlign: locale === 'ur' ? 'right' : 'left' }}>{t('tagline')}</Text>
         <Text style={{ color: C.genda, fontSize: 13, textAlign: locale === 'ur' ? 'right' : 'left' }}>{t('sandboxNote')}</Text>
       </View>
+      <Button title={t('assistant')} testID="open-assistant" onPress={() => router.push('/assistant')} />
       <Txt kind="h2">{t('occasions')}</Txt>
       {occ.error ? <ErrorText msg={occ.error} /> : !occ.data ? <Loading /> : (
         <Row wrap>{occ.data.map((o, i) => (

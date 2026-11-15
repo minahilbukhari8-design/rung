@@ -83,3 +83,11 @@ table { width: 100%; border-collapse: collapse; } td, th { padding: 8px 4px; bor
 
 footer.site { margin-top: 48px; background: var(--shab); color: var(--dupatta); padding: 28px 0; font-size: 14px; }
 footer.site img { height: 44px; }
+
+.chat-log { list-style: none; padding: 0; margin: 16px 0; display: grid; gap: 10px; }
+.bubble { padding: 10px 14px; border-radius: 16px; max-width: 92%; }
+.bubble.user { background: var(--shab); color: var(--dupatta); justify-self: end; }
+.bubble.assistant { background: var(--card); border: 1px solid var(--line); justify-self: start; }
+.chat-form { display: flex; gap: 8px; }
+.chat-form input { flex: 1; min-width: 0; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }

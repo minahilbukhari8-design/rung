@@ -130,3 +130,13 @@ test('Easypaisa (local simulator): declining cancels the order and says no money
   await page.getByRole('link', { name: /View order RG-/ }).click();
   await expect(page.getByTestId('order-status')).toHaveText('Cancelled');
 });
+
+test('Ask RUNG (basic helper, no AI key): Roman Urdu request shows real DEMO listings with working links', async ({ page }) => {
+  await page.goto('/assistant');
+  await expect(page.getByTestId('assistant-mode')).toContainText('not switched on yet');
+  await page.getByLabel('Your message').fill('mehendi ke liye sajawat chahiye');
+  await page.getByRole('button', { name: 'Send' }).click();
+  await expect(page.getByTestId('chat-assistant')).toContainText('DEMO Mehndi Stage Decor');
+  await page.getByTestId('chat-card-demo-mehndi-decor').click();
+  await expect(page).toHaveURL(/\/services\/demo-decor\/demo-mehndi-decor/);
+});

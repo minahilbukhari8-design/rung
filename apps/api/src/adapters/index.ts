@@ -2,6 +2,7 @@
  * External-service adapters. Only MOCK implementations exist until real accounts are opened
  * (see docs/ACCOUNTS_AND_KEYS.md). Nothing here contacts a real provider.
  */
+import type { AssistantEngine } from '../lib/assistant.js';
 import type { PaymentProvider } from '@prisma/client';
 import { walletsFromEnv } from './wallets.js';
 
@@ -140,6 +141,8 @@ export interface Adapters {
   sms: SmsSender;
   payments: Partial<Record<PaymentProvider, PaymentGateway>>;
   storage?: FileStorage;
+  /** chat assistant; left out → Claude if ANTHROPIC_API_KEY is real, else the basic keyword helper */
+  assistant?: AssistantEngine;
 }
 
 export function createAdapters(): Adapters {

@@ -34,6 +34,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
             <nav aria-label="Main">
               <Link href="/products">{t(locale, 'products')}</Link>
               <Link href="/services">{t(locale, 'services')}</Link>
+              <Link href="/assistant">{t(locale, 'assistant')}</Link>
               <Link href="/cart">{t(locale, 'cart')}</Link>
               {loggedIn ? (
                 <>

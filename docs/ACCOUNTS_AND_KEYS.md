@@ -55,7 +55,7 @@ Until then the app offers **cash on delivery, manual bank transfer, and a clearl
 | 17 | **Speech-to-text** (Urdu) — compare: ElevenLabs Scribe, Soniox, OpenAI, Google Cloud STT, Azure Speech | Voice notes → text | 🟡 per audio minute; most have free trial credit | Accounts for the 2–3 we shortlist for the bake-off |
 | 18 | **Text-to-speech** (Urdu) — compare: Azure Speech (ur-PK neural voices), ElevenLabs, Google Cloud TTS | Spoken replies in Urdu | 🟡 per character | Same |
 
-Milestone 9 starts with a written comparison (accuracy on real Lahori Urdu/Roman Urdu voice notes, latency, price) before we pick.
+**Status (Milestone 9):** the assistant is built and runs in a basic no-AI mode until #16 exists. With a real Anthropic API key it switches to Claude automatically (see `docs/ASSISTANT.md`); set a monthly spend limit first. Voice: desk comparison in `docs/research/urdu-voice.md`; the bake-off on real voice notes needs free-trial accounts for 2–3 providers (Azure, ElevenLabs, Uplift AI suggested).
 
 ## Mobile apps (Milestone 7)
 
