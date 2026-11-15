@@ -33,3 +33,4 @@ jobs:
       - run: pnpm --filter @rung/domain test
       - run: pnpm --filter @rung/db test
       - run: pnpm --filter @rung/api test
+      - run: pnpm --filter @rung/mobile test
