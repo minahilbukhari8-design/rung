@@ -23,6 +23,9 @@ const en = {
   payAdvance: 'Pay advance (test payment)', payRemaining: 'Pay remaining (test payment)', refundPolicy: 'Cancellation refund',
   hoursBefore: 'h before', language: 'اردو', sandboxNote: 'Payments in this build are sandbox only. No real money moves.',
   error: 'Something went wrong', retry: 'Try again', loading: 'Loading…',
+  jazzcash: 'JazzCash wallet', easypaisa: 'Easypaisa wallet', sandboxTag: 'sandbox: no real money',
+  paymentResult: 'Payment', paySucceeded: 'Payment received. Thank you!', payFailed: 'The payment did not go through. You have not been charged by RUNG.',
+  payPending: 'We are waiting for the wallet to confirm this payment.', viewOrder: 'View order', viewBooking: 'View booking', checkAgain: 'Check again',
 } as const;
 export type Key = keyof typeof en;
 
@@ -49,6 +52,9 @@ const ur: Record<Key, string> = {
   payAdvance: 'ایڈوانس ادا کریں (ٹیسٹ)', payRemaining: 'بقایا ادا کریں (ٹیسٹ)', refundPolicy: 'منسوخی پر واپسی',
   hoursBefore: 'گھنٹے پہلے', language: 'English', sandboxNote: 'اس ورژن میں ادائیگیاں صرف ٹیسٹ ہیں۔ اصل رقم منتقل نہیں ہوتی۔',
   error: 'کچھ غلط ہو گیا', retry: 'دوبارہ کوشش کریں', loading: 'لوڈ ہو رہا ہے…',
+  jazzcash: 'جاز کیش والٹ', easypaisa: 'ایزی پیسہ والٹ', sandboxTag: 'سینڈ باکس: اصل رقم نہیں',
+  paymentResult: 'ادائیگی', paySucceeded: 'ادائیگی موصول ہو گئی۔ شکریہ!', payFailed: 'ادائیگی مکمل نہیں ہوئی۔ رنگ نے کوئی رقم نہیں لی۔',
+  payPending: 'ہم والٹ کی تصدیق کا انتظار کر رہے ہیں۔', viewOrder: 'آرڈر دیکھیں', viewBooking: 'بکنگ دیکھیں', checkAgain: 'دوبارہ دیکھیں',
 };
 
 export const DICT = { en, ur };

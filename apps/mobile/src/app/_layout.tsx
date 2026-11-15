@@ -15,6 +15,7 @@ function Nav() {
       <Stack.Screen name="order/[number]" options={{ title: t('myOrders') }} />
       <Stack.Screen name="booking/[number]" options={{ title: t('myBookings') }} />
       <Stack.Screen name="occasion/[slug]" options={{ title: t('occasions') }} />
+      <Stack.Screen name="payment-result" options={{ title: t('paymentResult') }} />
     </Stack>
   );
 }

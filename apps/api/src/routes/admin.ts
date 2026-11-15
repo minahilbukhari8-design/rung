@@ -4,7 +4,8 @@ import { z } from 'zod';
 import type { Adapters } from '../adapters/index.js';
 import { ApiError, badRequest, conflict, notFound, parse, prisma, requireAdmin } from '../lib/core.js';
 import { ORDER_VENDOR_SLA_MIN, processApprovedRefunds, transitionOrder } from '../lib/orders.js';
-import { cancelBooking, move } from './bookings.js';
+import { settlePayment } from '../lib/payments.js';
+import { cancelBooking } from './bookings.js';
 
 const reason = z.string().trim().min(3).max(300);
 const page = z.object({ q: z.string().trim().max(60).optional(), status: z.string().max(40).optional(), take: z.coerce.number().int().min(1).max(200).default(50) });
@@ -161,7 +162,7 @@ export async function adminRoutes(app: FastifyInstance, adapters: Adapters) {
     await requireAdmin(req, 'FINANCE');
     const { status } = parse(z.object({ status: z.enum(['PENDING', 'SUCCEEDED', 'FAILED', 'REFUNDED', 'PARTIALLY_REFUNDED']).default('PENDING') }), req.query);
     return prisma.payment.findMany({
-      where: { status, ...(status === 'PENDING' ? { provider: 'BANK_TRANSFER' } : {}) },
+      where: { status, ...(status === 'PENDING' ? { provider: { notIn: ['MOCK', 'COD'] } } : {}) },
       orderBy: { createdAt: 'asc' },
       take: 100,
       include: { orderGroup: { include: { orders: { select: { number: true, status: true } }, customer: { select: { phone: true } } } }, booking: { select: { number: true, status: true, customer: { select: { phone: true } } } } },
@@ -174,34 +175,19 @@ export async function adminRoutes(app: FastifyInstance, adapters: Adapters) {
     if (decision !== 'confirm' && decision !== 'reject') throw notFound('Action');
     const body = parse(z.object({ reference: z.string().trim().max(80).optional(), reason: z.string().max(300).optional() }), req.body ?? {});
     const p = await prisma.payment.findUnique({ where: { id }, include: { orderGroup: { include: { orders: true } }, booking: true } });
-    if (!p || p.provider !== 'BANK_TRANSFER') throw notFound('Payment');
+    if (!p || p.provider === 'MOCK' || p.provider === 'COD') throw notFound('Payment');
     if (p.status !== 'PENDING') throw conflict('PAYMENT_NOT_PENDING', 'This payment was already decided');
 
     if (decision === 'reject') {
-      if (!body.reason) throw badRequest('REASON_REQUIRED', 'Say why the transfer was rejected');
-      await prisma.payment.update({ where: { id }, data: { status: 'FAILED', failureReason: body.reason } });
-      for (const o of p.orderGroup?.orders ?? []) {
-        if (o.status === 'PENDING_PAYMENT') await transitionOrder(adapters, { orderNumber: o.number, to: 'CANCELLED', actor: 'ADMIN', actorId: a.id, note: `Bank transfer not received: ${body.reason}` });
-      }
+      if (!body.reason) throw badRequest('REASON_REQUIRED', 'Say why the payment was rejected');
+      await settlePayment(adapters, id, { status: 'FAILED', reason: body.reason }, { type: 'ADMIN', id: a.id });
       await audit(req, a.id, 'payment.reject', 'Payment', id, { reason: body.reason });
       return prisma.payment.findUniqueOrThrow({ where: { id } });
     }
 
     if (!body.reference) throw badRequest('REFERENCE_REQUIRED', 'Enter the bank transaction reference');
-    await prisma.$transaction(async (tx) => {
-      const moved = await tx.payment.updateMany({ where: { id, status: 'PENDING' }, data: { status: 'SUCCEEDED', providerRef: body.reference, succeededAt: new Date() } });
-      if (moved.count !== 1) throw conflict('CONCURRENT_UPDATE', 'Payment changed, please refresh');
-      for (const o of p.orderGroup?.orders ?? []) {
-        if (o.status !== 'PENDING_PAYMENT') continue;
-        await tx.order.update({ where: { id: o.id }, data: { status: 'PLACED', placedAt: new Date(), vendorRespondBy: new Date(Date.now() + ORDER_VENDOR_SLA_MIN * 60_000) } });
-        await tx.orderStatusEvent.create({ data: { orderId: o.id, from: 'PENDING_PAYMENT', to: 'PLACED', actorType: 'ADMIN', actorId: a.id, note: 'Bank transfer confirmed' } });
-      }
-      if (p.booking) {
-        const fresh = await tx.booking.update({ where: { id: p.booking.id }, data: { paidPaisa: { increment: p.amountPaisa } } });
-        if (p.purpose === 'BOOKING_ADVANCE' && fresh.status === 'ACCEPTED') await move(tx, fresh, 'CONFIRMED', 'ADMIN', a.id, 'Advance received by bank transfer');
-        else if (p.purpose === 'BOOKING_REMAINING' && fresh.paidPaisa >= fresh.totalPaisa && ['CONFIRMED', 'COMPLETED'].includes(fresh.status)) await move(tx, fresh, 'FULLY_PAID', 'ADMIN', a.id, 'Balance received by bank transfer');
-      }
-    });
+    const r = await settlePayment(adapters, id, { status: 'SUCCEEDED', providerRef: body.reference, note: p.provider === 'BANK_TRANSFER' ? 'Bank transfer confirmed' : 'Payment confirmed by finance' }, { type: 'ADMIN', id: a.id });
+    if (!r.changed) throw conflict('CONCURRENT_UPDATE', 'Payment changed, please refresh');
     await audit(req, a.id, 'payment.confirm', 'Payment', id, { reference: body.reference, amountPaisa: p.amountPaisa });
     return prisma.payment.findUniqueOrThrow({ where: { id } });
   });

@@ -39,7 +39,13 @@ Legend: 🟢 free / free tier is enough to build · 🟡 small paid · 🔴 need
 | 14 | **Card gateway** — a Pakistani PSP (e.g. Safepay, PayFast) or your bank's gateway | Visa/Mastercard, overseas senders | 🔴 MDR per transaction | Same documents; some offer instant sandbox keys |
 | 15 | **Business bank account** | Receive payments, pay vendors | depends on bank | Business registration |
 
-Until these exist, the app ships with **cash on delivery + manual bank transfer with proof upload**, and the payment code runs against a mock provider in tests. I will not claim any gateway works until a real sandbox test passes.
+**Status (Milestone 8):** JazzCash and Easypaisa wallet payments are **built**, and tested only against a local simulator that RUNG runs itself. They are **not connected** to the real gateways. To test them for real I need, for each wallet, the **sandbox** credentials from its merchant portal:
+- JazzCash: Merchant ID, Password, Integrity Salt (and confirmation of the sandbox post URL).
+- Easypaisa (Easypay): Store ID, Hash Key, and the inquiry API username, password and account number.
+
+They go into the server's environment, never into the code. The steps after that are in `docs/PAYMENTS.md`. A card gateway is not chosen yet, so card payments are not built.
+
+Until then the app offers **cash on delivery, manual bank transfer, and a clearly marked test payment**. I will not claim any gateway works until a real sandbox test passes.
 
 ## AI assistant (Milestone 9)
 

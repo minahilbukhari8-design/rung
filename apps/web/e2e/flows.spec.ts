@@ -87,3 +87,46 @@ test('protected pages send logged-out users to login', async ({ page }) => {
   await page.goto('/orders');
   await expect(page).toHaveURL(/\/login\?next=%2Forders|\/login\?next=\/orders/);
 });
+
+async function cartWithCake(page: Page) {
+  await page.goto('/products/demo-bakery/demo-chocolate-cake');
+  await page.getByLabel(/1 lb/).check();
+  await page.getByRole('button', { name: 'Add to cart' }).click();
+  await expect(page.getByText('Added to cart')).toBeVisible();
+  await page.goto('/cart');
+  await page.getByLabel('Recipient name').fill('Apa');
+  await page.getByLabel('Recipient phone').fill('03211230000');
+  await page.getByLabel('House / street').fill('House 7, Street 2');
+  await page.getByLabel('Area').fill('DHA');
+  await page.getByRole('button', { name: 'Save address' }).click();
+  await page.getByLabel('Your name (sender)').fill('Sara');
+}
+
+test('JazzCash (local simulator): approve on the wallet page → back on RUNG, order placed', async ({ page }) => {
+  await login(page, '0335 1110001', '+923351110001');
+  await cartWithCake(page);
+  await page.getByLabel(/JazzCash wallet \(sandbox/).check();
+  await expect(page.getByTestId('grand-total')).toBeVisible();
+  await page.getByRole('button', { name: 'Place order' }).click();
+  // the browser is now on the (simulated) JazzCash page, reached through a signed, auto-posting form
+  await expect(page.getByRole('heading', { name: 'JazzCash (simulator)' })).toBeVisible();
+  await page.getByRole('button', { name: 'Approve payment' }).click();
+  await expect(page).toHaveURL(/\/payment\/result\?payment=/);
+  await expect(page.getByTestId('payment-result')).toHaveText('Payment received. Thank you!');
+  await page.getByRole('link', { name: /View order RG-/ }).click();
+  await expect(page.getByTestId('order-status')).toHaveText('Placed, waiting for vendor');
+});
+
+test('Easypaisa (local simulator): declining cancels the order and says no money was taken', async ({ page }) => {
+  await login(page, '0335 1110002', '+923351110002');
+  await cartWithCake(page);
+  await page.getByLabel(/Easypaisa wallet \(sandbox/).check();
+  await expect(page.getByTestId('grand-total')).toBeVisible();
+  await page.getByRole('button', { name: 'Place order' }).click();
+  await expect(page.getByRole('heading', { name: 'Easypaisa (simulator)' })).toBeVisible();
+  await page.getByRole('button', { name: 'Decline' }).click();
+  await expect(page).toHaveURL(/\/payment\/result\?payment=/);
+  await expect(page.getByTestId('payment-result')).toHaveText('The payment did not go through. You have not been charged by RUNG.');
+  await page.getByRole('link', { name: /View order RG-/ }).click();
+  await expect(page.getByTestId('order-status')).toHaveText('Cancelled');
+});

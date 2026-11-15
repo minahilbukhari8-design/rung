@@ -17,7 +17,11 @@ export default defineConfig({
     {
       command: `rm -f ${OUTBOX} && DATABASE_URL='${E2E_DB}' pnpm --filter @rung/db exec prisma migrate deploy && psql '${E2E_DB.split('?')[0]}' -q -f e2e/reset-db.sql && DATABASE_URL='${E2E_DB}' pnpm --filter @rung/api exec tsx src/seed.ts && pnpm --filter @rung/api exec tsx src/server.ts`,
       url: `${API}/health`,
-      env: { DATABASE_URL: E2E_DB, PORT: '4500', JWT_SECRET: 'e2e-secret-at-least-16', MOCK_SMS_OUTBOX_FILE: OUTBOX, NODE_ENV: 'development' },
+      env: { DATABASE_URL: E2E_DB, PORT: '4500', JWT_SECRET: 'e2e-secret-at-least-16', MOCK_SMS_OUTBOX_FILE: OUTBOX, NODE_ENV: 'development',
+        // wallets point at the API's LOCAL SIMULATOR (test values, not real merchant credentials); the preview server proxies /api
+        PAYMENT_SIMULATOR: '1', PUBLIC_API_URL: WEB, WEB_PUBLIC_URL: WEB, APP_RETURN_ORIGINS: WEB,
+        JAZZCASH_MERCHANT_ID: 'SIM_MERCHANT', JAZZCASH_PASSWORD: 'sim-password', JAZZCASH_INTEGRITY_SALT: 'sim-salt-not-real', JAZZCASH_POST_URL: `${WEB}/api/v1/sandbox-sim/jazzcash`,
+      },
       reuseExistingServer: false,
       timeout: 60_000,
     },

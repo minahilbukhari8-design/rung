@@ -7,6 +7,8 @@ import { bookingRoutes } from './routes/bookings.js';
 import { catalogRoutes } from './routes/catalog.js';
 import { commerceRoutes } from './routes/commerce.js';
 import { manageRoutes } from './routes/manage.js';
+import { paymentRoutes } from './routes/payments.js';
+import { simulatorRoutes } from './routes/simulator.js';
 import { vendorRoutes } from './routes/vendor.js';
 
 export async function buildApp(adapters: Adapters = createAdapters()): Promise<FastifyInstance> {
@@ -35,6 +37,9 @@ export async function buildApp(adapters: Adapters = createAdapters()): Promise<F
       await manageRoutes(v1, adapters);
       await vendorRoutes(v1, adapters);
       await adminRoutes(v1, adapters);
+      await paymentRoutes(v1, adapters);
+      // local wallet simulator: development / automated tests only
+      if (process.env.PAYMENT_SIMULATOR === '1' && process.env.NODE_ENV !== 'production') await simulatorRoutes(v1);
     },
     { prefix: '/api/v1' },
   );

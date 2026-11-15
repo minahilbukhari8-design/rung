@@ -3,13 +3,13 @@ import { useCallback, useEffect, useState } from 'react';
 import { useApp } from '@/lib/app';
 import { hhmm, pktDate } from '@/lib/dates';
 import { pick } from '@/lib/i18n';
+import { openWalletPayment, paymentReturnUrl, walletProviders, type Method, type Provider } from '@/lib/pay';
 import { Button, Card, Choice, ErrorText, Field, Loading, Money, Pill, Row, Screen, Txt } from '@/ui/kit';
 
 interface CartItem { id: string; quantity: number; customization: Record<string, string>; variant: { id: string; name: string; pricePaisa: number; product: { id: string; title: string; titleUr?: string | null; vendorId: string; vendor: { name: string; nameUr?: string | null; isDemo: boolean } } } }
 interface Address { id: string; recipientName: string; line1: string; area: string; zoneId: string | null }
 interface Slot { startMinute: number; endMinute: number; remaining: number }
 interface Group { vendorId: string; vendorName: string; productId: string; items: CartItem[] }
-type Provider = 'COD' | 'MOCK' | 'BANK_TRANSFER';
 
 function VendorGroup({ g, address, value, onChange }: { g: Group; address: Address | null; value: { date: string; slot: number | null }; onChange: (v: { date: string; slot: number | null }) => void }) {
   const { api, t, locale } = useApp();
@@ -52,6 +52,9 @@ export default function Cart() {
   const [quote, setQuote] = useState<{ grandTotalPaisa: number; groups: { vendorId: string; deliveryChargePaisa: number }[] } | null>(null);
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
+  const [methods, setMethods] = useState<Method[] | null>(null);
+  useEffect(() => { void api.get<Method[]>('/payments/methods').then(setMethods).catch(() => setMethods([])); }, [api]);
+  const wallets = walletProviders(methods);
 
   const load = useCallback(async () => {
     if (!loggedIn) return;
@@ -97,8 +100,9 @@ export default function Cart() {
   async function place() {
     setErr(''); setBusy(true);
     try {
-      const r = await api.post<{ orders: string[] }>('/checkout', { ...body(), provider, senderName: sender, idempotencyKey: `m-${Date.now()}-${Math.random().toString(36).slice(2)}` });
+      const r = await api.post<{ orders: string[]; payment: { id: string; redirectUrl?: string } }>('/checkout', { ...body(), provider, senderName: sender, client: 'app', returnTo: paymentReturnUrl(), idempotencyKey: `m-${Date.now()}-${Math.random().toString(36).slice(2)}` });
       setItems([]); setPlan({});
+      if (r.payment.redirectUrl) { await openWalletPayment(r.payment.redirectUrl, r.payment.id); return; }
       router.push(`/order/${r.orders[0]}?new=1`);
     } catch (e) { setErr((e as Error).message); } finally { setBusy(false); }
   }
@@ -125,6 +129,7 @@ export default function Cart() {
         <Choice label={t('mockPay')} selected={provider === 'MOCK'} onPress={() => setProvider('MOCK')} />
         <Choice label={t('cod')} selected={provider === 'COD'} onPress={() => setProvider('COD')} />
         <Choice label={t('bankTransfer')} selected={provider === 'BANK_TRANSFER'} onPress={() => setProvider('BANK_TRANSFER')} />
+        {wallets.map((w) => <Choice key={w} testID={`pay-${w}`} label={`${t(w === 'JAZZCASH' ? 'jazzcash' : 'easypaisa')} (${t('sandboxTag')})`} selected={provider === w} onPress={() => setProvider(w)} />)}
       </Row>
       {quote && (
         <Card>
