@@ -1,6 +1,7 @@
 import Fastify, { type FastifyInstance } from 'fastify';
 import { createAdapters, type Adapters } from './adapters/index.js';
 import { ApiError, authenticate } from './lib/core.js';
+import { adminRoutes } from './routes/admin.js';
 import { authRoutes } from './routes/auth.js';
 import { bookingRoutes } from './routes/bookings.js';
 import { catalogRoutes } from './routes/catalog.js';
@@ -33,6 +34,7 @@ export async function buildApp(adapters: Adapters = createAdapters()): Promise<F
       await bookingRoutes(v1, adapters);
       await manageRoutes(v1, adapters);
       await vendorRoutes(v1, adapters);
+      await adminRoutes(v1, adapters);
     },
     { prefix: '/api/v1' },
   );

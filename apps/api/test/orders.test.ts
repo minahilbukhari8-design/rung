@@ -165,7 +165,7 @@ describe('order lifecycle', () => {
   it('auto-rejects orders the vendor ignores past the SLA and refunds', async () => {
     const n = await placeOrder('life-key-0004');
     await prisma.order.update({ where: { number: n }, data: { vendorRespondBy: new Date(Date.now() - 1000) } });
-    await prisma.user.update({ where: { phone: '+923111111111' }, data: { roles: ['CUSTOMER', 'ADMIN'] } });
+    await prisma.user.update({ where: { phone: '+923111111111' }, data: { roles: ['CUSTOMER', 'ADMIN'], adminPermissions: ['SUPERADMIN'] } });
     const r = await api(ctx, token).post('/admin/jobs/expire');
     expect(r.json().ordersRejected).toBeGreaterThanOrEqual(1);
     const o = await prisma.order.findUniqueOrThrow({ where: { number: n }, include: { refunds: true } });

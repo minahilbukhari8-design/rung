@@ -50,6 +50,8 @@ export interface PaymentGateway {
   readonly isSandbox: boolean;
   init(p: PaymentInit): Promise<PaymentInitResult>;
   refund(providerRef: string | null, amountPaisa: number): Promise<{ providerRef: string }>;
+  /** true when money has to be sent back by hand (finance records it in the admin dashboard) */
+  readonly manualRefunds?: boolean;
 }
 
 export class MockGateway implements PaymentGateway {
@@ -83,12 +85,13 @@ export class CodGateway implements PaymentGateway {
 export class BankTransferGateway implements PaymentGateway {
   readonly provider = 'BANK_TRANSFER' as const;
   readonly isSandbox = false;
+  readonly manualRefunds = true;
   async init(): Promise<PaymentInitResult> {
     // Real bank details are shown from config once the business account exists. Never invented.
     return { kind: 'pending', instructions: 'Upload your transfer receipt. Bank details will appear once RUNG’s business account is set up.' };
   }
-  async refund(_ref: string | null, _amountPaisa: number) {
-    return { providerRef: `manual_bank_refund_${Date.now()}` };
+  async refund(): Promise<{ providerRef: string }> {
+    throw new Error('Bank transfer refunds are sent by hand and recorded by finance');
   }
 }
 

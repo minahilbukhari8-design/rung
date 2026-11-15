@@ -89,7 +89,7 @@ export async function processApprovedRefunds(adapters: Adapters, where: { orderI
   const refunds = await prisma.refund.findMany({ where: { ...where, status: 'APPROVED' }, include: { payment: true } });
   for (const r of refunds) {
     const gw = adapters.payments[r.payment.provider];
-    if (!gw) continue; // stays APPROVED for manual processing
+    if (!gw || gw.manualRefunds) continue; // stays APPROVED until finance records the manual transfer
     const res = await gw.refund(r.payment.providerRef, r.amountPaisa);
     await prisma.$transaction(async (tx) => {
       await tx.refund.update({ where: { id: r.id }, data: { status: 'PROCESSED', providerRef: res.providerRef, processedAt: new Date() } });
