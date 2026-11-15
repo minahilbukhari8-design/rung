@@ -23,7 +23,7 @@ export default async function ServicePage({ params }: { params: Promise<{ vendor
           <p>{pick(locale, s.description ?? '', s.descriptionUr)}</p>
           {tiers.length > 0 && (
             <div className="card">
-              <h3>{t(locale, 'cancellationPolicy')}</h3>
+              <h2 style={{ fontSize: 20 }}>{t(locale, 'cancellationPolicy')}</h2>
               <ul>{tiers.map((x) => <li key={x.hoursBefore}>{x.refundBps / 100}% {t(locale, 'refundBefore', { h: x.hoursBefore })}</li>)}</ul>
             </div>
           )}

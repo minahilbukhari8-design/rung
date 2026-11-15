@@ -32,7 +32,7 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
           {['PENDING_PAYMENT', 'PLACED', 'ACCEPTED'].includes(o.status) && <CancelOrder locale={locale} number={o.number} />}
         </div>
         <div>
-          <h3>{t(locale, 'status')}</h3>
+          <h2 style={{ fontSize: 20 }}>{t(locale, 'status')}</h2>
           <ol className="timeline">
             {o.events.map((e: { id: string; to: string; createdAt: string; note?: string }) => <li key={e.id}><strong>{statusLabel(locale, e.to)}</strong> <span className="muted">{new Date(e.createdAt).toLocaleString('en-PK', { timeZone: 'Asia/Karachi' })}</span>{e.note ? <div className="muted">{e.note}</div> : null}</li>)}
           </ol>

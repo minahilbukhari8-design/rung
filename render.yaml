@@ -1,0 +1,40 @@
+# Render Blueprint for the RUNG API on Render's FREE plan (preview only).
+# Free web services sleep after 15 minutes without traffic and take about a minute to wake.
+# Secrets marked sync: false are typed into the Render dashboard, never committed.
+services:
+  - type: web
+    name: rung-api
+    runtime: node
+    plan: free
+    region: singapore
+    buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm --filter @rung/db exec prisma generate
+    startCommand: pnpm --filter @rung/api start:prod
+    healthCheckPath: /health
+    autoDeploy: false
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NODE_VERSION
+        value: "22"
+      - key: FILE_STORAGE
+        value: db
+      - key: OTP_PROVIDER
+        value: mock
+      - key: SEED_DEMO
+        value: "1"
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JOBS_TOKEN
+        generateValue: true
+      - key: DATABASE_URL
+        sync: false # Neon connection string
+      - key: PUBLIC_API_URL
+        sync: false # https://rung-api.onrender.com (or whatever Render gives)
+      - key: WEB_PUBLIC_URL
+        sync: false # https://<web project>.vercel.app
+      - key: ADMIN_PHONE
+        sync: false # Minahil's number in +92 format
+      - key: PREVIEW_TEST_LOGINS
+        sync: false # 03001234567:482913,… (testers' phones and fixed codes)
+      - key: ANTHROPIC_API_KEY
+        sync: false # optional; leave empty for the basic assistant

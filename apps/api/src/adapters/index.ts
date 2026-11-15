@@ -3,7 +3,8 @@
  * (see docs/ACCOUNTS_AND_KEYS.md). Nothing here contacts a real provider.
  */
 import type { AssistantEngine } from '../lib/assistant.js';
-import type { PaymentProvider } from '@prisma/client';
+import type { PaymentProvider, PrismaClient } from '@prisma/client';
+import { prisma } from '../lib/core.js';
 import { walletsFromEnv } from './wallets.js';
 
 // ---------- SMS / OTP ----------
@@ -137,6 +138,28 @@ export class LocalStorage implements FileStorage {
   }
 }
 
+/** Files kept in Postgres (StoredFile). For free hosting where the server's disk is wiped on every restart. */
+export class DbStorage implements FileStorage {
+  readonly name = 'db';
+  constructor(private db: Pick<PrismaClient, 'storedFile'>) {}
+  async put(key: string, data: Buffer, contentType: string) {
+    const bytes = new Uint8Array(data);
+    await this.db.storedFile.upsert({ where: { key }, update: { data: bytes, contentType, size: data.length }, create: { key, data: bytes, contentType, size: data.length } });
+    return { key, contentType, size: data.length };
+  }
+  async get(key: string) {
+    const f = await this.db.storedFile.findUnique({ where: { key } });
+    return f ? { data: Buffer.from(f.data), contentType: f.contentType } : null;
+  }
+}
+
+export function createStorage(db: Pick<PrismaClient, 'storedFile'>): FileStorage {
+  const kind = process.env.FILE_STORAGE ?? 'local';
+  if (kind === 'db') return new DbStorage(db);
+  if (kind === 'local') return new LocalStorage();
+  throw new Error(`FILE_STORAGE "${kind}" is not implemented yet (use db or local)`);
+}
+
 export interface Adapters {
   sms: SmsSender;
   payments: Partial<Record<PaymentProvider, PaymentGateway>>;
@@ -149,6 +172,6 @@ export function createAdapters(): Adapters {
   return {
     sms: createSmsSender(),
     payments: { MOCK: new MockGateway(), COD: new CodGateway(), BANK_TRANSFER: new BankTransferGateway(), ...walletsFromEnv() },
-    storage: new LocalStorage(),
+    storage: createStorage(prisma),
   };
 }

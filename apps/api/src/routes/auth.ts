@@ -27,7 +27,25 @@ async function issueTokens(userId: string, userAgent?: string) {
   return { accessToken: await signAccessToken({ id: user.id, roles: user.roles }), refreshToken, user };
 }
 
+/**
+ * Free preview only: fixed codes for a short list of tester phones, so people can log in before an SMS account exists.
+ * Format: PREVIEW_TEST_LOGINS="03001234567:482913,03211234567:775120". Works only while OTP_PROVIDER is mock.
+ */
+export function previewLogins(env: NodeJS.ProcessEnv = process.env): Map<string, string> {
+  const out = new Map<string, string>();
+  if ((env.OTP_PROVIDER ?? 'mock') !== 'mock' || !env.PREVIEW_TEST_LOGINS) return out;
+  for (const pair of env.PREVIEW_TEST_LOGINS.split(',')) {
+    const [rawPhone, code] = pair.trim().split(':');
+    const phone = rawPhone ? normalizePkMobile(rawPhone) : null;
+    if (!phone || !code || !/^\d{6}$/.test(code)) throw new Error(`PREVIEW_TEST_LOGINS has a bad entry: "${pair.trim().replace(/:.*/, ':******')}"`);
+    if (/^(\d)\1{5}$/.test(code) || code === '123456') throw new Error('PREVIEW_TEST_LOGINS codes must not be guessable (no 111111 or 123456)');
+    out.set(phone, code);
+  }
+  return out;
+}
+
 export async function authRoutes(app: FastifyInstance, adapters: Adapters) {
+  const testLogins = previewLogins();
   app.post('/auth/otp/request', async (req) => {
     const { phone } = parse(z.object({ phone: phoneSchema }), req.body);
     const since = new Date(Date.now() - OTP_SEND_WINDOW_MS);
@@ -36,9 +54,10 @@ export async function authRoutes(app: FastifyInstance, adapters: Adapters) {
       prisma.otpCode.count({ where: { ip: req.ip, createdAt: { gte: since } } }),
     ]);
     if (byPhone >= OTP_MAX_SENDS || byIp >= OTP_MAX_SENDS_PER_IP) throw new ApiError(429, 'OTP_RATE_LIMIT', 'Too many codes requested. Try again in 15 minutes.');
-    const code = String(randomInt(0, 1_000_000)).padStart(6, '0');
+    const fixed = testLogins.get(phone);
+    const code = fixed ?? String(randomInt(0, 1_000_000)).padStart(6, '0');
     await prisma.otpCode.create({ data: { phone, codeHash: sha256(`${phone}:${code}`), expiresAt: new Date(Date.now() + OTP_TTL_MS), ip: req.ip } });
-    await adapters.sms.send(phone, `RUNG code: ${code}. Valid for 5 minutes. Do not share it.`);
+    if (!fixed) await adapters.sms.send(phone, `RUNG code: ${code}. Valid for 5 minutes. Do not share it.`);
     return { sent: true, phone, expiresInSeconds: OTP_TTL_MS / 1000 };
   });
 

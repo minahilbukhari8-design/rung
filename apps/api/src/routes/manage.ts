@@ -1,11 +1,17 @@
+import { timingSafeEqual } from 'node:crypto';
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import type { Adapters } from '../adapters/index.js';
-import { badRequest, conflict, notFound, parse, prisma, requireAdmin, requireUser, requireVendor } from '../lib/core.js';
+import { ApiError, badRequest, conflict, notFound, parse, prisma, requireAdmin, requireUser, requireVendor } from '../lib/core.js';
 import { expireUnansweredOrders, isUniqueViolation } from '../lib/orders.js';
 import { expireBookings } from './bookings.js';
 
 const slug = z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, 'lowercase-with-dashes').max(80);
+
+/** Time-based work: orders a vendor never answered, booking requests that ran out of time. Safe to run often. */
+export async function runScheduledJobs(adapters: Adapters) {
+  return { ordersRejected: await expireUnansweredOrders(adapters), bookingsExpired: await expireBookings() };
+}
 
 export async function manageRoutes(app: FastifyInstance, adapters: Adapters) {
   // ---------- vendor onboarding ----------
@@ -63,7 +69,7 @@ export async function manageRoutes(app: FastifyInstance, adapters: Adapters) {
         slug, title: z.string().min(2).max(120), titleUr: z.string().max(120).optional(), description: z.string().max(4000).optional(),
         categoryId: z.string(), occasionIds: z.array(z.string()).default([]), leadTimeMinutes: z.number().int().min(0).max(14 * 1440).default(0),
         status: z.enum(['DRAFT', 'ACTIVE']).default('DRAFT'),
-        variants: z.array(z.object({ name: z.string().min(1), sku: z.string().optional(), pricePaisa: z.number().int().positive(), stock: z.number().int().min(0).default(0), trackInventory: z.boolean().default(true), attributes: z.record(z.string()).default({}) })).min(1),
+        variants: z.array(z.object({ name: z.string().min(1), sku: z.string().optional(), pricePaisa: z.number().int().positive(), stock: z.number().int().min(0).default(0), trackInventory: z.boolean().default(true), attributes: z.record(z.string(), z.string()).default({}) })).min(1),
         customizations: z.array(z.object({ label: z.string(), type: z.enum(['TEXT', 'IMAGE', 'CHOICE']), isRequired: z.boolean().default(false), maxLength: z.number().int().positive().optional(), extraPricePaisa: z.number().int().min(0).default(0), choices: z.array(z.object({ value: z.string(), label: z.string(), extraPaisa: z.number().int().min(0).default(0) })).optional() })).default([]),
       }),
       req.body,
@@ -153,7 +159,17 @@ export async function manageRoutes(app: FastifyInstance, adapters: Adapters) {
   /** Runs time-based expiries. In production this is called by a scheduler every few minutes. */
   app.post('/admin/jobs/expire', async (req) => {
     await requireAdmin(req, 'OPS');
-    return { ordersRejected: await expireUnansweredOrders(adapters), bookingsExpired: await expireBookings() };
+    return runScheduledJobs(adapters);
+  });
+
+  /** For an outside scheduler (GitHub Actions on free hosting). Needs the JOBS_TOKEN secret in the x-jobs-token header. */
+  app.post('/jobs/run', async (req) => {
+    const want = process.env.JOBS_TOKEN;
+    const got = req.headers['x-jobs-token'];
+    if (!want || want.length < 24 || typeof got !== 'string' || got.length !== want.length || !timingSafeEqual(Buffer.from(got), Buffer.from(want))) {
+      throw new ApiError(401, 'BAD_JOBS_TOKEN', 'Not allowed');
+    }
+    return runScheduledJobs(adapters);
   });
 
   app.get('/admin/audit-log', async (req) => {

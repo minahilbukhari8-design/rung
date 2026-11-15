@@ -893,3 +893,13 @@ model AuditLog {
 
   @@index([entity, entityId])
 }
+
+/// Uploaded files kept in Postgres while RUNG runs on free hosting with no file bucket (FILE_STORAGE=db).
+/// Move to S3-compatible storage (e.g. Cloudflare R2) when files grow past a few hundred MB.
+model StoredFile {
+  key         String   @id
+  contentType String
+  size        Int
+  data        Bytes
+  createdAt   DateTime @default(now())
+}

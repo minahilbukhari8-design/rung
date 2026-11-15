@@ -14,7 +14,7 @@ const customizationValue = z.union([z.string().max(500), z.number()]);
 const cartItemSchema = z.object({
   variantId: z.string(),
   quantity: z.number().int().min(1).max(20),
-  customization: z.record(customizationValue).default({}),
+  customization: z.record(z.string(), customizationValue).default({}),
 });
 
 const checkoutSchema = z.object({
