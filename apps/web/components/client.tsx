@@ -128,13 +128,28 @@ interface Slot { startMinute: number; endMinute: number; remaining: number }
 const hhmm = (m: number) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
 const pktToday = (plus: number) => new Date(Date.now() + 5 * 3600_000 + plus * 86_400_000).toISOString().slice(0, 10);
 
+type Provider = 'MOCK' | 'JAZZCASH' | 'EASYPAISA' | 'COD' | 'BANK_TRANSFER';
+const PROVIDERS: Provider[] = ['MOCK', 'JAZZCASH', 'EASYPAISA', 'COD', 'BANK_TRANSFER'];
+type Method = { provider: string; isSandbox: boolean; kind: string };
+function usePaymentMethods(): Method[] {
+  const [m, setM] = useState<Method[]>([{ provider: 'MOCK', isSandbox: true, kind: 'instant' }, { provider: 'COD', isSandbox: false, kind: 'cash' }, { provider: 'BANK_TRANSFER', isSandbox: false, kind: 'transfer' }]);
+  useEffect(() => { void bff<Method[]>('payments/methods').then((r) => { if (r.ok && Array.isArray(r.data)) setM(r.data); }); }, []);
+  return m;
+}
+function providerLabel(locale: Locale, p: Provider, methods: Method[]): string {
+  const base = t(locale, ({ MOCK: 'mockPay', JAZZCASH: 'jazzcash', EASYPAISA: 'easypaisa', COD: 'cod', BANK_TRANSFER: 'bankTransfer' } as const)[p]);
+  const sandbox = p !== 'MOCK' && methods.find((m) => m.provider === p)?.isSandbox && (p === 'JAZZCASH' || p === 'EASYPAISA');
+  return sandbox ? `${base} (${t(locale, 'sandboxTag')})` : base;
+}
+
 export function CartCheckout({ locale }: { locale: Locale }) {
   const router = useRouter();
   const [items, setItems] = useState<CartItem[] | null>(null);
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [addressId, setAddressId] = useState('');
   const [choice, setChoice] = useState<Record<string, { date: string; slot?: number; slots: Slot[]; gift: string }>>({});
-  const [provider, setProvider] = useState<'COD' | 'MOCK' | 'BANK_TRANSFER'>('MOCK');
+  const [provider, setProvider] = useState<Provider>('MOCK');
+  const methods = usePaymentMethods();
   const [senderName, setSenderName] = useState('');
   const [hideSender, setHideSender] = useState(false);
   const [quote, setQuote] = useState<{ grandTotalPaisa: number; groups: { vendorId: string; subtotalPaisa: number; deliveryChargePaisa: number }[] } | null>(null);
@@ -189,9 +204,11 @@ export function CartCheckout({ locale }: { locale: Locale }) {
   async function remove(id: string) { await bff(`cart/items/${id}`, 'DELETE'); await load(); router.refresh(); }
   async function place() {
     setBusy(true); setErr('');
-    const r = await bff<{ orders: string[]; payment: { status: string } }>('checkout', 'POST', { provider, idempotencyKey: key, senderName, groups: groupPayload() });
+    const r = await bff<{ orders: string[]; payment: { status: string; redirectUrl?: string } }>('checkout', 'POST', { provider, idempotencyKey: key, senderName, groups: groupPayload(), client: 'web' });
+    if (!r.ok) { setBusy(false); return setErr(r.data.error?.message ?? 'Error'); }
+    // wallets: continue on the JazzCash / Easypaisa page; we come back to /payment/result
+    if (r.data.payment.redirectUrl) { window.location.href = r.data.payment.redirectUrl; return; }
     setBusy(false);
-    if (!r.ok) return setErr(r.data.error?.message ?? 'Error');
     router.push(`/orders/${r.data.orders[0]}?placed=1`); router.refresh();
   }
 
@@ -245,8 +262,8 @@ export function CartCheckout({ locale }: { locale: Locale }) {
         <label>{t(locale, 'senderName')}<input required value={senderName} onChange={(e) => setSenderName(e.target.value)} /></label>
         <label className="radio" style={{ marginTop: 8 }}><input type="checkbox" checked={hideSender} onChange={(e) => setHideSender(e.target.checked)} />{t(locale, 'hideSender')}</label>
         <h3 style={{ marginTop: 16 }}>{t(locale, 'payment')}</h3>
-        {(['MOCK', 'COD', 'BANK_TRANSFER'] as const).map((p) => (
-          <label key={p} className="radio"><input type="radio" name="pay" checked={provider === p} onChange={() => setProvider(p)} />{t(locale, p === 'MOCK' ? 'mockPay' : p === 'COD' ? 'cod' : 'bankTransfer')}</label>
+        {PROVIDERS.filter((p) => methods.some((m) => m.provider === p)).map((p) => (
+          <label key={p} className="radio"><input type="radio" name="pay" checked={provider === p} onChange={() => setProvider(p)} />{providerLabel(locale, p, methods)}</label>
         ))}
         {quote && (
           <table style={{ marginTop: 12 }}><tbody>
@@ -333,9 +350,13 @@ export function BookingActions({ locale, number, status, canPayRemaining }: { lo
   const router = useRouter();
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
+  const methods = usePaymentMethods();
+  const wallets = (['MOCK', 'JAZZCASH', 'EASYPAISA'] as Provider[]).filter((p) => methods.some((m) => m.provider === p));
+  const [provider, setProvider] = useState<Provider>('MOCK');
   async function pay(stage: 'advance' | 'remaining') {
     setBusy(true); setErr('');
-    const r = await bff(`bookings/${number}/pay`, 'POST', { stage, provider: 'MOCK', idempotencyKey: newKey() });
+    const r = await bff<{ redirectUrl?: string }>(`bookings/${number}/pay`, 'POST', { stage, provider, idempotencyKey: newKey(), client: 'web' });
+    if (r.ok && r.data.redirectUrl) { window.location.href = r.data.redirectUrl; return; }
     setBusy(false);
     if (!r.ok) setErr(r.data.error?.message ?? ''); router.refresh();
   }
@@ -350,7 +371,12 @@ export function BookingActions({ locale, number, status, canPayRemaining }: { lo
       {status === 'ACCEPTED' && <button className="btn" disabled={busy} onClick={() => pay('advance')}>{t(locale, 'payAdvance')}</button>}
       {canPayRemaining && <button className="btn" disabled={busy} onClick={() => pay('remaining')}>{t(locale, 'payRemaining')}</button>}
       {['REQUESTED', 'ACCEPTED', 'CONFIRMED', 'FULLY_PAID'].includes(status) && <button className="btn secondary" disabled={busy} onClick={cancel}>{t(locale, 'cancel')}</button>}
-      {(status === 'ACCEPTED' || canPayRemaining) && <span className="muted">{t(locale, 'mockPay')}</span>}
+      {(status === 'ACCEPTED' || canPayRemaining) && wallets.length > 1 && (
+        <label className="radio">{t(locale, 'payWith')}
+          <select value={provider} onChange={(e) => setProvider(e.target.value as Provider)}>{wallets.map((p) => <option key={p} value={p}>{providerLabel(locale, p, methods)}</option>)}</select>
+        </label>
+      )}
+      {(status === 'ACCEPTED' || canPayRemaining) && wallets.length <= 1 && <span className="muted">{t(locale, 'mockPay')}</span>}
       {err && <p className="error" role="alert">{err}</p>}
     </div>
   );

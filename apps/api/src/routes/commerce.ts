@@ -2,6 +2,8 @@ import type { PaymentProvider, Prisma } from '@prisma/client';
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import type { Adapters } from '../adapters/index.js';
+import { settlePayment } from '../lib/payments.js';
+import { paymentStartUrl } from './payments.js';
 import { ApiError, badRequest, conflict, humanNumber, notFound, parse, prisma, requireUser, requireVendor } from '../lib/core.js';
 import { isUniqueViolation, ORDER_VENDOR_SLA_MIN, transitionOrder } from '../lib/orders.js';
 import { availableSlots, dateOnly } from '../lib/slots.js';
@@ -16,7 +18,10 @@ const cartItemSchema = z.object({
 });
 
 const checkoutSchema = z.object({
-  provider: z.enum(['COD', 'MOCK', 'BANK_TRANSFER']),
+  provider: z.enum(['COD', 'MOCK', 'BANK_TRANSFER', 'JAZZCASH', 'EASYPAISA']),
+  /** where the customer returns after a wallet page: the website or the app */
+  client: z.enum(['web', 'app']).default('web'),
+  returnTo: z.string().max(300).optional(),
   idempotencyKey: z.string().min(8).max(100),
   senderName: z.string().min(1).max(80),
   groups: z
@@ -227,19 +232,17 @@ export async function commerceRoutes(app: FastifyInstance, adapters: Adapters) {
     // talk to the gateway outside the DB transaction
     let paymentStatus: 'SUCCEEDED' | 'PENDING' | 'FAILED';
     let instructions: string | undefined;
+    let redirectUrl: string | undefined;
     try {
       const r = await gw.init({ paymentId: created.payment.id, amountPaisa: grandTotal, description: `RUNG order ${created.orders.map((o) => o.number).join(', ')}` });
       if (r.kind === 'succeeded') {
         paymentStatus = 'SUCCEEDED';
-        await prisma.payment.update({ where: { id: created.payment.id }, data: { status: 'SUCCEEDED', providerRef: r.providerRef, succeededAt: new Date() } });
-        for (const o of created.orders) {
-          await prisma.order.update({ where: { id: o.id }, data: { status: 'PLACED', placedAt: new Date(), vendorRespondBy: new Date(Date.now() + ORDER_VENDOR_SLA_MIN * 60_000) } });
-          await prisma.orderStatusEvent.create({ data: { orderId: o.id, from: 'PENDING_PAYMENT', to: 'PLACED', actorType: 'SYSTEM', note: 'Payment confirmed' } });
-        }
+        await settlePayment(adapters, created.payment.id, { status: 'SUCCEEDED', providerRef: r.providerRef });
       } else {
         paymentStatus = 'PENDING';
         if (r.kind === 'pending') instructions = r.instructions;
-        await prisma.payment.update({ where: { id: created.payment.id }, data: { status: 'PENDING' } });
+        if (r.kind === 'redirect') redirectUrl = paymentStartUrl(created.payment.id, input.client);
+        await prisma.payment.update({ where: { id: created.payment.id }, data: { status: 'PENDING', ...(r.kind === 'redirect' ? { providerRef: r.providerRef, rawResponse: { client: input.client, returnTo: input.returnTo ?? null } } : {}) } });
       }
     } catch (err) {
       paymentStatus = 'FAILED';
@@ -252,7 +255,7 @@ export async function commerceRoutes(app: FastifyInstance, adapters: Adapters) {
       groupId: created.group.id,
       grandTotalPaisa: grandTotal,
       orders: created.orders.map((o) => o.number),
-      payment: { id: created.payment.id, provider: input.provider, status: paymentStatus, isSandbox: gw.isSandbox, instructions },
+      payment: { id: created.payment.id, provider: input.provider, status: paymentStatus, isSandbox: gw.isSandbox, instructions, redirectUrl },
     };
   });
 

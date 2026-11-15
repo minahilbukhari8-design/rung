@@ -1,6 +1,6 @@
 # RUNG — PROGRESS
 
-_Last updated: 15 Nov 2026 (Milestone 7)_
+_Last updated: 15 Nov 2026 (Milestone 8)_
 
 ## Status by milestone
 
@@ -13,8 +13,9 @@ _Last updated: 15 Nov 2026 (Milestone 7)_
 | 5 | Vendor dashboard | ✅ Done (awaiting review) |
 | 6 | Admin dashboard | ✅ Done (awaiting review) |
 | 7 | Mobile app (Expo) | ✅ Done (awaiting review) |
-| 8 | Payments (sandbox) | ⏳ Next |
-| 9–10 | AI assistant → Launch | Not started |
+| 8 | Payments (sandbox) | ✅ Built; wallets tested on a local simulator only, not connected (needs merchant sandbox accounts) |
+| 9 | AI assistant | ⏳ Next |
+| 10 | QA + launch | Not started |
 
 ## Milestone 1 — done
 
@@ -29,6 +30,23 @@ _Last updated: 15 Nov 2026 (Milestone 7)_
 - Improved master prompt: `docs/MASTER_PROMPT.md`
 - Accounts + keys list with cost notes: `docs/ACCOUNTS_AND_KEYS.md`
 - Generator sources: `brand/source/gen.py`, `mock.py`, `render.js`
+
+## Milestone 8 — built (sandbox only, not connected)
+
+- JazzCash and Easypaisa wallet payments for orders and booking payments, on the website and in the app. Details and go-live checklist: `docs/PAYMENTS.md`.
+- One place (`settlePayment`) turns a payment result into order and booking changes, safe against the same reply arriving twice, wrong amounts and late payments.
+- Signed, expiring start links; JazzCash replies checked by signature; Easypaisa status always confirmed with its inquiry API; bad replies logged for the admin team.
+- Finance's bank transfer confirm / reject now uses the same path; wallet payments waiting for review appear in the same admin queue.
+- Customer result page on the website and a payment result screen in the app (opens the wallet in an in-app browser and comes back to `rung://payment-result`).
+- A local wallet simulator (`PAYMENT_SIMULATOR=1`, never in production) for automated tests.
+- **Not connected to real JazzCash or Easypaisa.** That needs their merchant sandbox credentials (see `docs/ACCOUNTS_AND_KEYS.md`). Card payments are not built (no gateway chosen).
+
+### Milestone 8 decisions
+28. A wallet only appears at checkout when its credentials are real; placeholders keep it hidden.
+29. RUNG never trusts the customer's browser coming back from a wallet. JazzCash replies must carry a valid signature; Easypaisa status is always asked from Easypaisa directly.
+30. If a wallet reports a different amount than RUNG asked for, nothing is placed and finance reviews it.
+31. Wallet refunds are made by finance in the merchant portal and recorded in the admin dashboard until each wallet's refund API is verified in sandbox.
+32. The app returns from the wallet only to `rung://` or addresses listed in `APP_RETURN_ORIGINS`, so a link cannot send customers to another site.
 
 ## Milestone 7 — done
 
@@ -155,6 +173,12 @@ None needed yet for Milestone 2. Full list: `docs/ACCOUNTS_AND_KEYS.md`.
 
 ## Tests
 
+**Milestone 8 (15 Nov 2026):**
+- API: **62/62 passing** (13 new payment tests: JazzCash and Easypaisa signatures checked against independently computed values; paid settles once even if the reply repeats; tampered, forged and unsigned replies refused; amount mismatch held for review; decline cancels and restocks; voucher stays waiting; late payment after cancel creates a refund request; start links signed and expiring; app return only to rung://; booking advance confirms the booking; Easypaisa's unsigned return not trusted, inquiry decides; admin review queue).
+- Website e2e **7/7** (2 new: JazzCash approve → order placed; Easypaisa decline → order cancelled, "no money taken"). Both run against the **local simulator**, not the real gateways.
+- App e2e **5/5** (1 new: JazzCash approve from the app → payment result → order placed, local simulator). Mobile unit tests 7/7, `tsc` clean.
+- Not tested: the real JazzCash and Easypaisa sandboxes (no merchant accounts yet); the in-app browser return on a physical phone.
+
 **Milestone 7 (15 Nov 2026):**
 - Mobile: `tsc` clean; **unit tests 7/7** (API client: tokens saved on login, bearer header, one shared refresh for parallel requests, logout when refresh fails, API errors; Pakistan dates; every English string has Urdu).
 - `expo prebuild` generates the Android (`pk.rung.app`) and iOS projects from the config without errors (generated folders not committed).
@@ -192,7 +216,7 @@ None needed yet for Milestone 2. Full list: `docs/ACCOUNTS_AND_KEYS.md`.
 
 ## Known issues
 
-- Payment webhooks, JazzCash/Easypaisa/card adapters, refunds to real gateways: Milestone 8 (need merchant accounts).
+- JazzCash and Easypaisa are built but checked only against RUNG's own simulator; field names come from public merchant code, not the official guides. Card payments not built.
 - WhatsApp/SMS notifications are not sent yet beyond OTP (mock); notification fan-out comes with Milestone 4/5.
 - Reviews endpoints, payout generation and the OpenAPI file are planned but not built yet. Uploads use local disk until R2 is set up.
 - Expiry jobs run via `POST /admin/jobs/expire`; a real scheduler is set up at deploy time (Milestone 10).

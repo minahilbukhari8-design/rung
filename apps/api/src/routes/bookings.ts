@@ -3,6 +3,8 @@ import { assertBookingTransition, cancellationRefund, InvalidTransitionError, qu
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import type { Adapters } from '../adapters/index.js';
+import { settlePayment } from '../lib/payments.js';
+import { paymentStartUrl } from './payments.js';
 import { ApiError, badRequest, conflict, forbidden, humanNumber, notFound, parse, prisma, requireUser, requireVendor } from '../lib/core.js';
 import { isUniqueViolation, processApprovedRefunds } from '../lib/orders.js';
 
@@ -140,7 +142,7 @@ export async function bookingRoutes(app: FastifyInstance, adapters: Adapters) {
   app.post('/bookings/:number/pay', async (req, reply) => {
     const u = requireUser(req);
     const { number } = req.params as { number: string };
-    const body = parse(z.object({ stage: z.enum(['advance', 'remaining']), provider: z.enum(['MOCK', 'BANK_TRANSFER']), idempotencyKey: z.string().min(8) }), req.body);
+    const body = parse(z.object({ stage: z.enum(['advance', 'remaining']), provider: z.enum(['MOCK', 'BANK_TRANSFER', 'JAZZCASH', 'EASYPAISA']), idempotencyKey: z.string().min(8), client: z.enum(['web', 'app']).default('web'), returnTo: z.string().max(300).optional() }), req.body);
     const prior = await prisma.payment.findUnique({ where: { idempotencyKey: body.idempotencyKey } });
     if (prior) return { payment: prior, idempotentReplay: true };
     const b = await prisma.booking.findFirst({ where: { number, customerId: u.id } });
@@ -162,17 +164,15 @@ export async function bookingRoutes(app: FastifyInstance, adapters: Adapters) {
     reply.code(201);
     try {
       const r = await gw.init({ paymentId: payment.id, amountPaisa: amount, description: `RUNG booking ${b.number} (${body.stage})` });
+      if (r.kind === 'redirect') {
+        await prisma.payment.update({ where: { id: payment.id }, data: { status: 'PENDING', providerRef: r.providerRef, rawResponse: { client: body.client, returnTo: body.returnTo ?? null } } });
+        return { payment: await prisma.payment.findUniqueOrThrow({ where: { id: payment.id } }), redirectUrl: paymentStartUrl(payment.id, body.client) };
+      }
       if (r.kind !== 'succeeded') {
         return { payment: await prisma.payment.update({ where: { id: payment.id }, data: { status: 'PENDING' } }), instructions: r.kind === 'pending' ? r.instructions : undefined };
       }
-      const updated = await prisma.$transaction(async (tx) => {
-        const p = await tx.payment.update({ where: { id: payment.id }, data: { status: 'SUCCEEDED', providerRef: r.providerRef, succeededAt: new Date() } });
-        const fresh = await tx.booking.update({ where: { id: b.id }, data: { paidPaisa: { increment: amount } } });
-        if (body.stage === 'advance') await move(tx, fresh, 'CONFIRMED', 'SYSTEM', undefined, 'Advance paid');
-        else if (fresh.paidPaisa >= fresh.totalPaisa) await move(tx, fresh, 'FULLY_PAID', 'SYSTEM', undefined, 'Remaining paid');
-        return p;
-      });
-      return { payment: updated };
+      const settled = await settlePayment(adapters, payment.id, { status: 'SUCCEEDED', providerRef: r.providerRef, note: body.stage === 'advance' ? 'Advance paid' : 'Remaining paid' });
+      return { payment: settled.payment };
     } catch (e) {
       if (e instanceof ApiError) throw e;
       await prisma.payment.update({ where: { id: payment.id }, data: { status: 'FAILED', failureReason: (e as Error).message } });

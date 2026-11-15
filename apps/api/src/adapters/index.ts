@@ -3,6 +3,7 @@
  * (see docs/ACCOUNTS_AND_KEYS.md). Nothing here contacts a real provider.
  */
 import type { PaymentProvider } from '@prisma/client';
+import { walletsFromEnv } from './wallets.js';
 
 // ---------- SMS / OTP ----------
 export interface SmsSender {
@@ -43,7 +44,8 @@ export interface PaymentInit {
 export type PaymentInitResult =
   | { kind: 'succeeded'; providerRef: string } // instant (mock)
   | { kind: 'pending'; instructions: string } // bank transfer: wait for proof review
-  | { kind: 'on_delivery' }; // COD
+  | { kind: 'on_delivery' } // COD
+  | { kind: 'redirect'; providerRef: string }; // wallet hosted page (JazzCash, Easypaisa): see wallets.ts
 
 export interface PaymentGateway {
   readonly provider: PaymentProvider;
@@ -143,7 +145,7 @@ export interface Adapters {
 export function createAdapters(): Adapters {
   return {
     sms: createSmsSender(),
-    payments: { MOCK: new MockGateway(), COD: new CodGateway(), BANK_TRANSFER: new BankTransferGateway() },
+    payments: { MOCK: new MockGateway(), COD: new CodGateway(), BANK_TRANSFER: new BankTransferGateway(), ...walletsFromEnv() },
     storage: new LocalStorage(),
   };
 }

@@ -76,3 +76,29 @@ test('customer requests a decor booking', async ({ page }) => {
   await expect(page.getByRole('heading', { name: /Booking requested/ })).toBeVisible();
   await expect(page.getByText('Requested', { exact: true }).first()).toBeVisible();
 });
+
+test('JazzCash (local simulator): the app sends the customer to the wallet and shows the confirmed result', async ({ page }) => {
+  await login(page, '0333 4447777', '+923334447777');
+  await page.goto('/product/demo-bakery/demo-chocolate-cake');
+  await page.getByTestId('variant-1 lb').click();
+  await page.getByRole('button', { name: 'Add to cart' }).click();
+  await expect(page.getByText('Added to cart')).toBeVisible();
+  await page.goto('/cart');
+  await page.getByLabel('Recipient name').fill('Khala');
+  await page.getByLabel('Recipient phone').fill('03211239999');
+  await page.getByLabel('House / street').fill('House 3, Street 9');
+  await page.getByLabel('Area').fill('DHA');
+  await page.getByRole('button', { name: 'Save address' }).click();
+  await page.locator('[data-testid^="date-"]').nth(2).click();
+  await page.locator('[data-testid^="slot-"]').first().click();
+  await page.getByLabel('Your name (sender)').fill('Hina');
+  await page.getByTestId('pay-JAZZCASH').click();
+  await expect(page.getByText('Total')).toBeVisible();
+  await page.getByRole('button', { name: 'Place order' }).click();
+  await expect(page.getByRole('heading', { name: 'JazzCash (simulator)' })).toBeVisible();
+  await page.getByRole('button', { name: 'Approve payment' }).click();
+  await expect(page).toHaveURL(/\/payment-result\?payment=/);
+  await expect(page.getByTestId('payment-result')).toContainText('Payment received. Thank you!');
+  await page.getByRole('button', { name: 'View order' }).click();
+  await expect(page.getByText('Placed', { exact: true }).first()).toBeVisible();
+});
