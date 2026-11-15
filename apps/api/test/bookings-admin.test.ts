@@ -97,7 +97,7 @@ describe('service bookings', () => {
     await prisma.booking.update({ where: { number: n1 }, data: { vendorRespondBy: new Date(Date.now() - 1) } });
     await prisma.booking.update({ where: { number: n2 }, data: { advanceDueBy: new Date(Date.now() - 1) } });
     const admin = await login(ctx, '03151515151');
-    await prisma.user.update({ where: { phone: '+923151515151' }, data: { roles: ['CUSTOMER', 'ADMIN'] } });
+    await prisma.user.update({ where: { phone: '+923151515151' }, data: { roles: ['CUSTOMER', 'ADMIN'], adminPermissions: ['SUPERADMIN'] } });
     const r = await api(ctx, admin).post('/admin/jobs/expire');
     expect(r.json().bookingsExpired).toBe(2);
     expect((await prisma.booking.findUniqueOrThrow({ where: { number: n1 } })).status).toBe('EXPIRED');
@@ -124,7 +124,7 @@ describe('vendor onboarding and admin', () => {
     // non-admin can't approve
     expect((await api(ctx, owner).post(`/admin/vendors/${apply.json().id}/approve`)).statusCode).toBe(403);
     const admin = await login(ctx, '03171717171');
-    await prisma.user.update({ where: { phone: '+923171717171' }, data: { roles: ['CUSTOMER', 'ADMIN'] } });
+    await prisma.user.update({ where: { phone: '+923171717171' }, data: { roles: ['CUSTOMER', 'ADMIN'], adminPermissions: ['SUPERADMIN'] } });
     const ok = await api(ctx, admin).post(`/admin/vendors/${apply.json().id}/approve`, { commissionBps: 1000 });
     expect(ok.json()).toMatchObject({ status: 'APPROVED', commissionBps: 1000 });
     expect(await prisma.auditLog.count({ where: { action: 'vendor.approve', entityId: apply.json().id } })).toBe(1);

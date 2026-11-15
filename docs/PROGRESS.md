@@ -1,6 +1,6 @@
 # RUNG — PROGRESS
 
-_Last updated: 14 Nov 2026 (Milestone 5)_
+_Last updated: 15 Nov 2026 (Milestone 6)_
 
 ## Status by milestone
 
@@ -11,8 +11,9 @@ _Last updated: 14 Nov 2026 (Milestone 5)_
 | 3 | Backend + tests | ✅ Done (awaiting review) |
 | 4 | Customer website | ✅ Done (awaiting review) |
 | 5 | Vendor dashboard | ✅ Done (awaiting review) |
-| 6 | Admin dashboard | ⏳ Next |
-| 7–10 | Mobile → Launch | Not started |
+| 6 | Admin dashboard | ✅ Done (awaiting review) |
+| 7 | Mobile app (Expo) | ⏳ Next |
+| 8–10 | Payments → Launch | Not started |
 
 ## Milestone 1 — done
 
@@ -27,6 +28,25 @@ _Last updated: 14 Nov 2026 (Milestone 5)_
 - Improved master prompt: `docs/MASTER_PROMPT.md`
 - Accounts + keys list with cost notes: `docs/ACCOUNTS_AND_KEYS.md`
 - Generator sources: `brand/source/gen.py`, `mock.py`, `render.js`
+
+## Milestone 6 — done
+
+- `apps/admin` (port 3002): Next.js admin dashboard for the RUNG team (English), works on phone and desktop, same secure cookie proxy (separate cookies from the vendor and customer apps)
+  - Overview: queues waiting on the team (shops to review, KYC, bank transfers to check, refunds to send, late orders), today's orders, last-7-days delivered value and commission
+  - Vendors: review by status, details (team, documents, counts), approve / reject / suspend with reason, set commission per shop
+  - KYC: open private documents, accept or reject with a note; a shop is marked “CNIC verified” when both sides are accepted
+  - Orders and bookings: search by number or phone, status filters, full timeline, cancel with reason (refunds follow the rules)
+  - Payments: confirm a bank transfer with the bank reference (order goes to the shop) or mark it not received (order cancelled, stock returned)
+  - Refunds: approve / reject requested refunds, record manual refunds as sent with a reference
+  - Payouts: build one payout per shop for a finished period (delivered orders + completed bookings, minus commission), hold / release, mark paid with a reference; shops see it in Earnings
+  - Users: search, block (logs them out everywhere) and unblock
+  - Audit log: every admin action with who, when and IP
+- Admin permissions: OPS (shops, KYC), FINANCE (payments, refunds, payouts), SUPPORT (orders, bookings, users, reviews), SUPERADMIN (all). The first admin is created from `ADMIN_PHONE` when seeding.
+
+### Milestone 6 decisions
+22. The admin dashboard is English only (internal team tool); customer and vendor apps stay bilingual.
+23. Bank transfer refunds are never marked “sent” automatically; they wait in Refunds until finance records the transfer reference. (Fixed a bug where they were marked processed with no money moved.)
+24. Payouts are built only for finished periods and only once per shop per period.
 
 ## Milestone 5 — done
 
@@ -119,6 +139,11 @@ _Last updated: 14 Nov 2026 (Milestone 5)_
 None needed yet for Milestone 2. Full list: `docs/ACCOUNTS_AND_KEYS.md`.
 
 ## Tests
+
+**Milestone 6 (15 Nov 2026):**
+- API: **49/49 passing** (7 new admin tests: permission areas, KYC review and verification, bank transfer confirm and reject with stock return, manual refund recorded, sandbox refund on admin cancel, payouts once per period, user block logs out and stops login).
+- Admin app: `tsc` clean, `next build` succeeds; **Playwright e2e 4/4 passing, run twice** (non-admin refused, KYC accept + shop approval with the private PDF opened through the dashboard, bank transfer confirm → cancel → refund recorded → audit log, block/unblock).
+- Customer website e2e 5/5 and vendor e2e 4/4 re-run: still passing.
 
 **Milestone 5 (14 Nov 2026):**
 - API: **42/42 passing** (added 9 vendor/upload tests: membership, stock/price/status edits, closed days remove slots, staff permissions, earnings after delivery, private KYC access, file-type and size checks, public product image, path tricks refused).

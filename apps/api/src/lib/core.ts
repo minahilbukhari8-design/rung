@@ -82,11 +82,16 @@ export function requireUser(req: FastifyRequest): AuthUser {
   return req.user;
 }
 
-export async function requireAdmin(req: FastifyRequest): Promise<AuthUser> {
+export type AdminArea = 'OPS' | 'FINANCE' | 'SUPPORT';
+
+/** Admin check. With an area, the admin also needs that permission (SUPERADMIN has all). */
+export async function requireAdmin(req: FastifyRequest, area?: AdminArea): Promise<AuthUser & { permissions: string[] }> {
   const u = requireUser(req);
   const db = await prisma.user.findUnique({ where: { id: u.id } });
-  if (!db?.roles.includes('ADMIN')) throw forbidden('Admin only');
-  return u;
+  if (!db?.roles.includes('ADMIN') || db.isBlocked) throw forbidden('Admin only');
+  const permissions = db.adminPermissions as string[];
+  if (area && !permissions.includes('SUPERADMIN') && !permissions.includes(area)) throw forbidden(`Needs ${area} permission`);
+  return { ...u, permissions };
 }
 
 /** Returns the vendor the user belongs to (first membership), checking role when needed. */

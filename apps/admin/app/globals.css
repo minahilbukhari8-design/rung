@@ -1,0 +1,85 @@
+@font-face { font-family: 'Fraunces'; src: url('/fonts/fraunces-latin-600-normal.woff2') format('woff2'); font-weight: 600; font-display: swap; }
+@font-face { font-family: 'Fraunces'; src: url('/fonts/fraunces-latin-400-normal.woff2') format('woff2'); font-weight: 400; font-display: swap; }
+@font-face { font-family: 'Jakarta'; src: url('/fonts/plus-jakarta-sans-latin-400-normal.woff2') format('woff2'); font-weight: 400; font-display: swap; }
+@font-face { font-family: 'Jakarta'; src: url('/fonts/plus-jakarta-sans-latin-500-normal.woff2') format('woff2'); font-weight: 500; font-display: swap; }
+@font-face { font-family: 'Jakarta'; src: url('/fonts/plus-jakarta-sans-latin-700-normal.woff2') format('woff2'); font-weight: 700; font-display: swap; }
+@font-face { font-family: 'Naskh'; src: url('/fonts/noto-naskh-arabic-arabic-400-normal.woff2') format('woff2'); font-weight: 400; font-display: swap; }
+@font-face { font-family: 'Naskh'; src: url('/fonts/noto-naskh-arabic-arabic-700-normal.woff2') format('woff2'); font-weight: 700; font-display: swap; }
+@font-face { font-family: 'Nastaliq'; src: url('/fonts/noto-nastaliq-urdu-arabic-700-normal.woff2') format('woff2'); font-weight: 700; font-display: swap; }
+
+:root {
+  --shab: #2B1236; --rani: #D6246E; --rani-deep: #B0175A; --genda: #F4A21D; --firozi: #0E8C8C; --firozi-deep: #0A6B6B;
+  --kesar: #E8572A; --mehndi: #5B8A3A; --mehndi-deep: #456B2B; --zari: #C9A04E; --dupatta: #FBF4EA;
+  --ink: #2B1236; --muted: #6B5A70; --line: #E7DCCB; --card: #FFFFFF;
+  --radius: 16px; --display: 'Fraunces', Georgia, serif; --body: 'Jakarta', system-ui, sans-serif;
+}
+html[lang='ur'] { --display: 'Nastaliq', 'Naskh', serif; --body: 'Naskh', 'Jakarta', sans-serif; }
+
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--dupatta); color: var(--ink); font-family: var(--body); font-size: 16px; line-height: 1.55; }
+html[lang='ur'] body { line-height: 1.8; }
+a { color: var(--rani-deep); text-decoration: none; }
+a:hover { text-decoration: underline; }
+img { max-width: 100%; }
+h1, h2, h3 { font-family: var(--display); font-weight: 600; line-height: 1.2; margin: 0 0 .5em; }
+html[lang='ur'] h1, html[lang='ur'] h2, html[lang='ur'] h3 { line-height: 2; font-weight: 700; }
+h1 { font-size: clamp(30px, 5vw, 52px); }
+h2 { font-size: clamp(22px, 3vw, 32px); }
+:focus-visible { outline: 3px solid var(--firozi); outline-offset: 2px; }
+
+.wrap { max-width: 1160px; margin: 0 auto; padding: 0 16px; }
+.stripe { display: flex; height: 6px; } .stripe span { flex: 1; }
+
+header.site { background: var(--shab); color: var(--dupatta); }
+header.site .bar { display: flex; align-items: center; gap: 16px; padding: 12px 16px; max-width: 1160px; margin: 0 auto; flex-wrap: wrap; }
+header.site a { color: var(--dupatta); }
+header.site nav { display: flex; gap: 14px; margin-inline-start: auto; align-items: center; flex-wrap: wrap; font-weight: 500; font-size: 15px; }
+header.site form { flex: 1 1 220px; max-width: 360px; }
+header.site input { width: 100%; border-radius: 999px; border: 0; padding: 10px 16px; font: inherit; }
+.badge-count { background: var(--rani); color: #fff; border-radius: 999px; padding: 0 8px; font-size: 13px; margin-inline-start: 4px; }
+
+.hero { background: var(--shab); color: var(--dupatta); padding: 48px 0 56px; }
+.hero p { max-width: 620px; opacity: .9; font-size: 18px; }
+.hero .tag { color: var(--genda); font-weight: 700; letter-spacing: .14em; text-transform: uppercase; font-size: 13px; }
+html[lang='ur'] .hero .tag { letter-spacing: 0; font-size: 18px; }
+
+section { padding: 32px 0; }
+.grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
+.occasions { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+.occ { border-radius: var(--radius); padding: 18px; color: #fff; font-weight: 700; min-height: 96px; display: flex; flex-direction: column; justify-content: space-between; }
+.occ:hover { text-decoration: none; transform: translateY(-2px); }
+.occ small { font-family: 'Naskh', serif; font-weight: 400; font-size: 16px; opacity: .95; }
+.occ.dark-text { color: var(--shab); }
+
+.card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; display: block; color: inherit; }
+a.card:hover { text-decoration: none; border-color: var(--rani); }
+.card .thumb { aspect-ratio: 4/3; border-radius: 12px; background: linear-gradient(135deg, #f6e7ef, #fdf0dc); display: grid; place-items: center; margin-bottom: 12px; overflow: hidden; }
+.card .thumb img { width: 46%; opacity: .9; }
+.price { font-weight: 700; }
+.muted { color: var(--muted); font-size: 14px; }
+.pill { display: inline-block; border-radius: 999px; padding: 2px 10px; font-size: 12px; font-weight: 700; }
+.pill.demo { background: var(--genda); color: var(--shab); }
+.pill.ok { background: #e6f0df; color: var(--mehndi-deep); }
+.pill.status { background: #f1e6f5; color: var(--shab); }
+
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; background: var(--rani); color: #fff; border: 0; border-radius: 999px; padding: 12px 22px; font: inherit; font-weight: 700; cursor: pointer; min-height: 44px; }
+.btn:hover { background: var(--rani-deep); text-decoration: none; }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+.btn.secondary { background: transparent; color: var(--shab); border: 2px solid var(--shab); }
+.btn.small { padding: 6px 14px; min-height: 36px; font-size: 14px; }
+
+form.stack { display: grid; gap: 12px; }
+label { display: grid; gap: 4px; font-weight: 500; font-size: 15px; }
+input, select, textarea { font: inherit; padding: 10px 12px; border-radius: 10px; border: 1px solid #cdbfae; background: #fff; color: var(--ink); min-height: 44px; }
+.radio { display: flex; gap: 8px; align-items: center; font-weight: 400; }
+.radio input { min-height: auto; }
+.error { color: var(--rani-deep); font-weight: 500; }
+.notice { background: #fff6e0; border: 1px solid var(--genda); border-radius: 12px; padding: 10px 14px; font-size: 14px; }
+.two { display: grid; gap: 24px; grid-template-columns: 1fr; }
+@media (min-width: 860px) { .two { grid-template-columns: 1.2fr 1fr; } }
+table { width: 100%; border-collapse: collapse; } td, th { padding: 8px 4px; border-bottom: 1px solid var(--line); text-align: start; }
+.timeline { list-style: none; padding: 0; margin: 0; border-inline-start: 3px solid var(--zari); }
+.timeline li { padding: 6px 14px; }
+
+footer.site { margin-top: 48px; background: var(--shab); color: var(--dupatta); padding: 28px 0; font-size: 14px; }
+footer.site img { height: 44px; }

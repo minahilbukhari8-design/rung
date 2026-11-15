@@ -132,13 +132,13 @@ export async function manageRoutes(app: FastifyInstance, adapters: Adapters) {
 
   // ---------- admin ----------
   app.get('/admin/vendors', async (req) => {
-    await requireAdmin(req);
+    await requireAdmin(req, 'OPS');
     const { status } = parse(z.object({ status: z.enum(['PENDING_REVIEW', 'APPROVED', 'SUSPENDED', 'REJECTED']).optional() }), req.query);
     return prisma.vendor.findMany({ where: { status }, orderBy: { createdAt: 'asc' }, include: { documents: true } });
   });
 
   app.post('/admin/vendors/:id/:action', async (req) => {
-    const admin = await requireAdmin(req);
+    const admin = await requireAdmin(req, 'OPS');
     const { id, action } = req.params as { id: string; action: string };
     const { reason, commissionBps } = parse(z.object({ reason: z.string().max(300).optional(), commissionBps: z.number().int().min(0).max(5000).optional() }), req.body ?? {});
     const status = ({ approve: 'APPROVED', reject: 'REJECTED', suspend: 'SUSPENDED' } as const)[action as 'approve'];
@@ -152,12 +152,13 @@ export async function manageRoutes(app: FastifyInstance, adapters: Adapters) {
 
   /** Runs time-based expiries. In production this is called by a scheduler every few minutes. */
   app.post('/admin/jobs/expire', async (req) => {
-    await requireAdmin(req);
+    await requireAdmin(req, 'OPS');
     return { ordersRejected: await expireUnansweredOrders(adapters), bookingsExpired: await expireBookings() };
   });
 
   app.get('/admin/audit-log', async (req) => {
     await requireAdmin(req);
-    return prisma.auditLog.findMany({ orderBy: { createdAt: 'desc' }, take: 100 });
+    const { entity, entityId } = parse(z.object({ entity: z.string().max(40).optional(), entityId: z.string().max(40).optional() }), req.query);
+    return prisma.auditLog.findMany({ where: { entity, entityId }, orderBy: { createdAt: 'desc' }, take: 200, include: { actor: { select: { phone: true, name: true } } } });
   });
 }

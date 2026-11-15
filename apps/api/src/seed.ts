@@ -116,7 +116,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   await seedReference(prisma);
   if (!process.argv.includes('--no-demo')) await seedDemo(prisma);
   if (process.env.ADMIN_PHONE) {
-    await prisma.user.upsert({ where: { phone: process.env.ADMIN_PHONE }, update: { roles: { set: ['CUSTOMER', 'ADMIN'] } }, create: { phone: process.env.ADMIN_PHONE, roles: ['CUSTOMER', 'ADMIN'], adminPermissions: ['SUPERADMIN'] } });
+    await prisma.user.upsert({ where: { phone: process.env.ADMIN_PHONE }, update: { roles: { set: ['CUSTOMER', 'ADMIN'] }, adminPermissions: { set: ['SUPERADMIN'] } }, create: { phone: process.env.ADMIN_PHONE, roles: ['CUSTOMER', 'ADMIN'], adminPermissions: ['SUPERADMIN'] } });
   }
   console.log('Seed complete. DEMO rows are flagged isDemo=true.');
   await prisma.$disconnect();

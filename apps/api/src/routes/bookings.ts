@@ -30,7 +30,7 @@ function wrap(e: unknown): never {
   throw e;
 }
 
-async function move(
+export async function move(
   tx: Prisma.TransactionClient,
   b: { id: string; status: BookingStatus; rescheduleCount: number },
   to: BookingStatus,
