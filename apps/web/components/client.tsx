@@ -381,3 +381,56 @@ export function BookingActions({ locale, number, status, canPayRemaining }: { lo
     </div>
   );
 }
+
+interface AssistantCard { kind: 'product' | 'service'; vendorSlug: string; slug: string; title: string; titleUr: string | null; vendorName: string; fromPaisa: number | null; isDemo: boolean; available: boolean }
+interface ChatLine { role: 'user' | 'assistant'; content: string; cards?: AssistantCard[] }
+
+/** Chat with the RUNG assistant. Cards come from the server's database lookups, so every link and price is real. */
+export function AssistantChat({ locale }: { locale: Locale }) {
+  const [lines, setLines] = useState<ChatLine[]>([]);
+  const [text, setText] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+  async function send(e: FormEvent) {
+    e.preventDefault();
+    const msg = text.trim();
+    if (!msg || busy) return;
+    const next: ChatLine[] = [...lines, { role: 'user', content: msg }];
+    setLines(next); setText(''); setErr(''); setBusy(true);
+    const r = await bff<{ text: string; cards: AssistantCard[] }>('assistant/chat', 'POST', { locale, messages: next.slice(-12).map(({ role, content }) => ({ role, content })) });
+    setBusy(false);
+    if (!r.ok) { setErr(r.data.error?.message ?? t(locale, 'assistantError')); return; }
+    setLines([...next, { role: 'assistant', content: r.data.text, cards: r.data.cards }]);
+  }
+  return (
+    <div className="chat">
+      <ol className="chat-log" aria-live="polite" data-testid="chat-log">
+        {lines.map((l, i) => (
+          <li key={i} className={`bubble ${l.role}`} data-testid={`chat-${l.role}`}>
+            <span className="sr-only">{l.role === 'user' ? t(locale, 'you') : 'RUNG'}: </span>
+            <span style={{ whiteSpace: 'pre-line' }}>{l.content}</span>
+            {l.cards && l.cards.length > 0 && (
+              <div className="grid" style={{ marginTop: 10 }}>
+                {l.cards.map((c) => (
+                  <a key={`${c.kind}-${c.vendorSlug}-${c.slug}`} className="card" href={`/${c.kind === 'product' ? 'products' : 'services'}/${c.vendorSlug}/${c.slug}`} data-testid={`chat-card-${c.slug}`}>
+                    {c.isDemo && <span className="pill demo">{t(locale, 'demo')}</span>}
+                    <strong style={{ display: 'block' }}>{locale === 'ur' && c.titleUr ? c.titleUr : c.title}</strong>
+                    <span className="muted">{c.vendorName}</span>
+                    {c.fromPaisa !== null && <span className="price" style={{ display: 'block' }}>{formatPKR(c.fromPaisa, locale)}</span>}
+                  </a>
+                ))}
+              </div>
+            )}
+          </li>
+        ))}
+        {busy && <li className="bubble assistant muted">…</li>}
+      </ol>
+      <form onSubmit={send} className="chat-form">
+        <label className="sr-only" htmlFor="chat-input">{t(locale, 'typeMessage')}</label>
+        <input id="chat-input" value={text} onChange={(e) => setText(e.target.value)} maxLength={1000} placeholder={t(locale, 'typeMessage')} autoComplete="off" />
+        <button className="btn" type="submit" disabled={busy || !text.trim()}>{t(locale, 'send')}</button>
+      </form>
+      {err && <p className="error" role="alert">{err}</p>}
+    </div>
+  );
+}

@@ -1,6 +1,6 @@
 # RUNG — PROGRESS
 
-_Last updated: 15 Nov 2026 (Milestone 8)_
+_Last updated: 15 Nov 2026 (Milestone 9)_
 
 ## Status by milestone
 
@@ -14,8 +14,8 @@ _Last updated: 15 Nov 2026 (Milestone 8)_
 | 6 | Admin dashboard | ✅ Done (awaiting review) |
 | 7 | Mobile app (Expo) | ✅ Done (awaiting review) |
 | 8 | Payments (sandbox) | ✅ Built; wallets tested on a local simulator only, not connected (needs merchant sandbox accounts) |
-| 9 | AI assistant | ⏳ Next |
-| 10 | QA + launch | Not started |
+| 9 | AI assistant | ✅ Built; runs in basic (no-AI) mode until an Anthropic key is added |
+| 10 | QA + launch | ⏳ Next |
 
 ## Milestone 1 — done
 
@@ -30,6 +30,20 @@ _Last updated: 15 Nov 2026 (Milestone 8)_
 - Improved master prompt: `docs/MASTER_PROMPT.md`
 - Accounts + keys list with cost notes: `docs/ACCOUNTS_AND_KEYS.md`
 - Generator sources: `brand/source/gen.py`, `mock.py`, `render.js`
+
+## Milestone 9 — built (AI off until a key is added)
+
+- **Ask RUNG** chat on the website (`/assistant`, in the main menu) and in the app (button on the home screen), English / Urdu / Roman Urdu. Details: `docs/ASSISTANT.md`.
+- Two modes: a basic keyword helper (default, no account needed) and Claude with four read-only tools over the live catalogue and the customer's own orders. Switches to Claude only when a real `ANTHROPIC_API_KEY` is set.
+- Cards under each reply come from the database, so the assistant cannot show a made-up product, shop or price.
+- Urdu voice: desk comparison of Azure, Google, ElevenLabs, Uplift AI and Soniox in `docs/research/urdu-voice.md`; for now customers use the keyboard microphone. A real bake-off needs trial accounts.
+
+### Milestone 9 decisions
+33. The assistant is read-only: it never orders, pays or cancels.
+34. Listing cards are built by the server from tool results, not from the AI's words.
+35. Message text is not stored; only usage (engine, time, turns) is logged.
+36. Default model `claude-opus-5-5` at low effort, with refusal fallback; a cheaper model is Minahil's call after real usage is measured.
+37. Voice input starts with the phone keyboard microphone (free); a paid speech provider is picked only after testing on real Lahori voice notes.
 
 ## Milestone 8 — built (sandbox only, not connected)
 
@@ -172,6 +186,11 @@ _Last updated: 15 Nov 2026 (Milestone 8)_
 None needed yet for Milestone 2. Full list: `docs/ACCOUNTS_AND_KEYS.md`.
 
 ## Tests
+
+**Milestone 9 (15 Nov 2026):**
+- API: **72/72 passing** (10 new assistant tests: basic mode without a key; budgets like "5k tak" and "3,000 se kam"; Roman Urdu and Urdu requests find the real DEMO listings and respect the budget; order questions need a login; Claude tool loop with a scripted stand-in for the API: tools called, results fed back, cards only from the database, a made-up product never becomes a card; order data only for the logged-in customer; unknown tools and bad input reported back, not crashed; refusal reply; outage gives 503; input limits and rate limit).
+- Website e2e **8/8** (new: Ask RUNG in Roman Urdu → DEMO mehndi decor card → opens the listing). App e2e **6/6** (new: Ask RUNG from home → DEMO cake → opens it). App unit 7/7.
+- Not tested: the real Claude API (no key yet); any speech provider.
 
 **Milestone 8 (15 Nov 2026):**
 - API: **62/62 passing** (13 new payment tests: JazzCash and Easypaisa signatures checked against independently computed values; paid settles once even if the reply repeats; tampered, forged and unsigned replies refused; amount mismatch held for review; decline cancels and restocks; voucher stays waiting; late payment after cancel creates a refund request; start links signed and expiring; app return only to rung://; booking advance confirms the booking; Easypaisa's unsigned return not trusted, inquiry decides; admin review queue).

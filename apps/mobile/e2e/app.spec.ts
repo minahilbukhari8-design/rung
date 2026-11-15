@@ -102,3 +102,14 @@ test('JazzCash (local simulator): the app sends the customer to the wallet and s
   await page.getByRole('button', { name: 'View order' }).click();
   await expect(page.getByText('Placed', { exact: true }).first()).toBeVisible();
 });
+
+test('Ask RUNG from the home screen (basic helper, no AI key) finds a real DEMO cake and opens it', async ({ page }) => {
+  await page.goto('/');
+  await page.getByTestId('open-assistant').click();
+  await expect(page.getByTestId('assistant-mode')).toContainText('not switched on yet');
+  await page.getByLabel('Your message').fill('salgirah ke liye cake 1500 tak');
+  await page.getByRole('button', { name: 'Send' }).click();
+  await expect(page.getByTestId('chat-assistant')).toContainText('DEMO Chocolate Cake');
+  await page.getByTestId('chat-card-demo-chocolate-cake').click();
+  await expect(page).toHaveURL(/\/product\/demo-bakery\/demo-chocolate-cake/);
+});
