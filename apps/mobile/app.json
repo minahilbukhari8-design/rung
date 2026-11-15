@@ -1,0 +1,56 @@
+{
+  "expo": {
+    "name": "RUNG",
+    "slug": "rung",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "pk.rung.app",
+      "infoPlist": {
+        "CFBundleAllowMixedLocalizations": true
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#2B1236",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false,
+      "package": "pk.rung.app"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "name": "RUNG",
+      "themeColor": "#2B1236"
+    },
+    "scheme": "rung",
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      "expo-localization",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 180,
+          "resizeMode": "contain",
+          "backgroundColor": "#FBF4EA"
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "apiUrl": "http://localhost:4000",
+      "note": "apiUrl is overridden by EXPO_PUBLIC_API_URL"
+    },
+    "backgroundColor": "#FBF4EA",
+    "description": "RUNG: cakes, flowers, gifts and event services in Lahore. DEMO build: sandbox payments only."
+  }
+}
